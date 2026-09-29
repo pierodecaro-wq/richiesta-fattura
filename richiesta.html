@@ -96,9 +96,10 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <div data-k="azienda"><label class="req" for="piva">Partita IVA</label><input id="piva" inputmode="numeric" maxlength="11"></div>
 <div data-k="azienda"><label for="cf_az">Codice fiscale</label><input id="cf_az" maxlength="16" autocapitalize="characters"></div>
 </div>
-<div data-k="azienda"><label for="dest">Codice destinatario (7 caratteri) o PEC</label><input id="dest" maxlength="256" autocapitalize="off"></div>
-
 <div data-k="privato"><label class="req" for="cf_pr">Codice fiscale</label><input id="cf_pr" maxlength="16" autocapitalize="characters"></div>
+
+<div data-k="azienda privato"><label for="dest">Codice destinatario (7 caratteri) o PEC</label><input id="dest" maxlength="256" autocapitalize="off">
+<p class="sub" data-k="privato">Quasi sempre i privati non ce l'hanno: in quel caso lascia vuoto.</p></div>
 
 <div data-k="pa">
 <label class="req" for="cf_pa">Codice fiscale dell'ente</label><input id="cf_pa" inputmode="numeric" maxlength="11">
@@ -323,14 +324,16 @@ function raccogli(){
     if(!c.cognome) segna("pf_cognome","Manca il cognome del cliente.",errs);
   } else { c.denominazione=v("den"); if(!c.denominazione) segna("den","Manca la ragione sociale del cliente.",errs); }
   if(k==="azienda"){
-    c.partita_iva=up("piva").replace(/^IT/,""); c.codice_fiscale=up("cf_az"); c.codice_destinatario_o_pec=v("dest");
+    c.partita_iva=up("piva").replace(/^IT/,""); c.codice_fiscale=up("cf_az");
     if(!pivaOk(c.partita_iva)) segna("piva","Partita IVA non valida (11 cifre, controlla di averla copiata bene).",errs);
     if(c.codice_fiscale && !cfOk(c.codice_fiscale)) segna("cf_az","Codice fiscale non valido.",errs);
-    const d=c.codice_destinatario_o_pec;
+  }
+  if(k==="privato"){ c.codice_fiscale=up("cf_pr"); if(!cfPersonaOk(c.codice_fiscale)) segna("cf_pr","Codice fiscale non valido.",errs); }
+  if(k==="azienda" || k==="privato"){
+    const d=v("dest"); c.codice_destinatario_o_pec=d;
     if(d && !/^[A-Za-z0-9]{7}$/.test(d) && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d)) segna("dest","Codice destinatario (7 caratteri) o PEC non valido.",errs);
     if(/^[A-Za-z0-9]{7}$/.test(d)) c.codice_destinatario_o_pec=d.toUpperCase();
   }
-  if(k==="privato"){ c.codice_fiscale=up("cf_pr"); if(!cfPersonaOk(c.codice_fiscale)) segna("cf_pr","Codice fiscale non valido.",errs); }
   if(k==="pa"){
     c.codice_fiscale=up("cf_pa"); if(!pivaOk(c.codice_fiscale)) segna("cf_pa","Codice fiscale dell'ente non valido (11 cifre).",errs);
     const pa={codice_ufficio:up("uff"), tipo_documento_acquisto:$("pa_tipo").value, numero_documento:"", data_documento:"", cig:up("cig"), cup:up("cup")};
