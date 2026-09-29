@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Richiesta fattura</title>
+<style>
+:root{--bg:#fff;--fg:#1a1d21;--mut:#5b6470;--line:#d4d8de;--acc:#1f5fbf;--accfg:#fff;--err:#b3261e;--errbg:#fdecea;--ok:#1e7a3c;--field:#fff;--sec:#f3f5f8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181c;--fg:#e8eaed;--mut:#9aa3ad;--line:#343a42;--acc:#6ea0ec;--accfg:#0d1117;--err:#f2b8b5;--errbg:#3a1d1b;--ok:#7fd49a;--field:#1c2026;--sec:#1c2026}}
+:root[data-theme="dark"]{--bg:#15181c;--fg:#e8eaed;--mut:#9aa3ad;--line:#343a42;--acc:#6ea0ec;--accfg:#0d1117;--err:#f2b8b5;--errbg:#3a1d1b;--ok:#7fd49a;--field:#1c2026;--sec:#1c2026}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:12px 16px 48px}
+h1{font-size:20px;margin:8px 0 2px}
+.sub{color:var(--mut);font-size:14px;margin:0 0 12px}
+fieldset{border:1px solid var(--line);border-radius:6px;margin:0 0 12px;padding:10px 12px 12px}
+legend{font-weight:600;padding:0 4px}
+label{display:block;font-size:14px;color:var(--mut);margin:8px 0 3px}
+label.req::after{content:" *";color:var(--err)}
+input,select,textarea{width:100%;font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:4px;padding:9px 10px;min-height:42px}
+textarea{min-height:64px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--acc);outline-offset:0;border-color:var(--acc)}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 10px}
+.row2>div,.row3>div{min-width:0}
+input[type=date]{min-width:0;-webkit-appearance:none;appearance:none}
+.row3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:0 10px}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.seg label{margin:0;color:var(--fg);font-size:15px;border:1px solid var(--line);border-radius:4px;padding:8px 10px;display:flex;align-items:center;gap:6px;background:var(--field)}
+.seg input{width:auto;min-height:0;margin:0}
+.riga{border-top:1px solid var(--line);padding-top:6px;margin-top:10px}
+.riga:first-of-type{border-top:0;margin-top:0;padding-top:0}
+.rh{display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:15px;margin-top:6px}
+.tot{color:var(--mut);font-size:14px;margin-top:4px}
+button{font:inherit;border-radius:4px;border:1px solid var(--line);background:var(--field);color:var(--fg);padding:10px 14px;min-height:44px;cursor:pointer}
+button.pri{background:var(--acc);border-color:var(--acc);color:var(--accfg);font-weight:600}
+button.lnk{border:0;background:none;color:var(--acc);padding:4px;min-height:0}
+.acts{display:grid;gap:8px;margin-top:10px}
+.err{color:var(--err);font-size:13px;margin-top:3px}
+.errbox{background:var(--errbg);color:var(--err);border-radius:4px;padding:10px 12px;margin:8px 0;font-size:14px}
+.hid{display:none!important}
+.note{color:var(--mut);font-size:13px}
+details{border:1px solid var(--line);border-radius:6px;padding:8px 12px;margin:0 0 10px;background:var(--sec)}
+details summary{cursor:pointer;font-weight:600}
+details p,details li{font-size:14px}
+.chk{display:flex;gap:8px;align-items:flex-start;color:var(--fg);font-size:15px}
+.chk input{width:22px;min-height:22px;margin-top:1px;flex:none}
+pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--sec);border:1px solid var(--line);border-radius:4px;padding:8px;max-height:220px;overflow:auto}
+@media (max-width:420px){.row3{grid-template-columns:1fr 1fr}.row3>div:first-child{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<main>
+<div id="blocco" class="errbox hid"></div>
+<div id="app" class="hid">
+<h1>Richiesta fattura</h1>
+<p class="sub" id="perchi"></p>
+
+<form id="f" novalidate autocomplete="on">
+
+<fieldset>
+<legend>Documento</legend>
+<div class="seg" role="radiogroup">
+<label><input type="radio" name="tipo" value="fattura" checked> Fattura</label>
+<label><input type="radio" name="tipo" value="nota_credito"> Nota di credito</label>
+</div>
+<div id="nc" class="hid">
+<div class="row2">
+<div><label class="req" for="nc_numero">Numero fattura da stornare</label><input id="nc_numero" maxlength="20"></div>
+<div><label class="req" for="nc_data">Data fattura da stornare</label><input id="nc_data" type="date"></div>
+</div>
+</div>
+</fieldset>
+
+<fieldset>
+<legend>A chi fatturi</legend>
+<div class="seg" role="radiogroup">
+<label><input type="radio" name="tc" value="azienda" checked> Azienda o professionista</label>
+<label><input type="radio" name="tc" value="privato"> Privato</label>
+<label><input type="radio" name="tc" value="pa"> Pubblica amministrazione</label>
+<label><input type="radio" name="tc" value="estero"> Estero</label>
+</div>
+
+<div data-k="estero"><label class="req">Il cliente estero è</label>
+<div class="seg" role="radiogroup">
+<label><input type="radio" name="et" value="azienda" checked> Azienda o professionista</label>
+<label><input type="radio" name="et" value="privato"> Privato</label>
+</div></div>
+<div id="box_den"><label class="req" for="den" id="l_den">Ragione sociale</label><input id="den" maxlength="80"></div>
+<div id="box_pf" class="row2 hid">
+<div><label class="req" for="pf_nome">Nome</label><input id="pf_nome" maxlength="60" autocomplete="off"></div>
+<div><label class="req" for="pf_cognome">Cognome</label><input id="pf_cognome" maxlength="60" autocomplete="off"></div>
+</div>
+
+<div data-k="azienda estero" class="row2">
+<div data-k="azienda"><label class="req" for="piva">Partita IVA</label><input id="piva" inputmode="numeric" maxlength="11"></div>
+<div data-k="azienda"><label for="cf_az">Codice fiscale</label><input id="cf_az" maxlength="16" autocapitalize="characters"></div>
+</div>
+<div data-k="azienda"><label for="dest">Codice destinatario (7 caratteri) o PEC</label><input id="dest" maxlength="256" autocapitalize="off"></div>
+
+<div data-k="privato"><label class="req" for="cf_pr">Codice fiscale</label><input id="cf_pr" maxlength="16" autocapitalize="characters"></div>
+
+<div data-k="pa">
+<label class="req" for="cf_pa">Codice fiscale dell'ente</label><input id="cf_pa" inputmode="numeric" maxlength="11">
+<label class="req" for="uff">Codice univoco ufficio (6 caratteri)</label><input id="uff" maxlength="6" autocapitalize="characters">
+<label for="pa_tipo">Documento d'acquisto</label>
+<select id="pa_tipo"><option value="">Nessuno</option><option value="ordine">Ordine</option><option value="contratto">Contratto</option><option value="convenzione">Convenzione</option></select>
+<div id="pa_doc" class="hid">
+<div class="row2">
+<div><label class="req" for="pa_num">Numero</label><input id="pa_num" maxlength="20"></div>
+<div><label for="pa_data">Data</label><input id="pa_data" type="date"></div>
+</div>
+</div>
+<div class="row2">
+<div><label for="cig">CIG</label><input id="cig" maxlength="15" autocapitalize="characters"></div>
+<div><label for="cup">CUP</label><input id="cup" maxlength="15" autocapitalize="characters"></div>
+</div>
+</div>
+
+<div data-k="estero">
+<label class="req" for="idest">Identificativo fiscale estero (es. VAT number)</label><input id="idest" maxlength="28" autocapitalize="characters">
+</div>
+
+<label class="req" for="ind">Indirizzo</label><input id="ind" maxlength="60" autocomplete="street-address">
+<div class="row3">
+<div><label class="req" for="com">Comune o città</label><input id="com" maxlength="60"></div>
+<div><label class="req" for="cap" id="l_cap">CAP</label><input id="cap" maxlength="10"></div>
+<div data-k="azienda privato pa"><label for="prov">Provincia</label><input id="prov" maxlength="2" autocapitalize="characters"></div>
+<div data-k="estero"><label class="req" for="paese">Paese</label><select id="paese"><option value="">Scegli</option><optgroup label="Unione europea"><option value="AT">Austria</option><option value="BE">Belgio</option><option value="BG">Bulgaria</option><option value="CY">Cipro</option><option value="HR">Croazia</option><option value="DK">Danimarca</option><option value="EE">Estonia</option><option value="FI">Finlandia</option><option value="FR">Francia</option><option value="DE">Germania</option><option value="GR">Grecia</option><option value="IE">Irlanda</option><option value="LV">Lettonia</option><option value="LT">Lituania</option><option value="LU">Lussemburgo</option><option value="MT">Malta</option><option value="NL">Paesi Bassi</option><option value="PL">Polonia</option><option value="PT">Portogallo</option><option value="CZ">Repubblica Ceca</option><option value="RO">Romania</option><option value="SK">Slovacchia</option><option value="SI">Slovenia</option><option value="ES">Spagna</option><option value="SE">Svezia</option><option value="HU">Ungheria</option></optgroup><optgroup label="Altri paesi"><option value="AL">Albania</option><option value="AU">Australia</option><option value="BR">Brasile</option><option value="CA">Canada</option><option value="CN">Cina</option><option value="VA">Città del Vaticano</option><option value="AE">Emirati Arabi Uniti</option><option value="JP">Giappone</option><option value="IN">India</option><option value="IL">Israele</option><option value="MA">Marocco</option><option value="MC">Monaco</option><option value="NO">Norvegia</option><option value="GB">Regno Unito</option><option value="SM">San Marino</option><option value="RS">Serbia</option><option value="US">Stati Uniti</option><option value="CH">Svizzera</option><option value="TR">Turchia</option><option value="UA">Ucraina</option></optgroup><option value="altro">Altro paese</option></select><div id="paese_altro_box" class="hid"><label class="req" for="paese_altro">Sigla del paese (2 lettere, es. MX)</label><input id="paese_altro" maxlength="2" autocapitalize="characters"></div></div>
+</div>
+</fieldset>
+
+<fieldset>
+<legend>Cosa fatturi</legend>
+<div id="righe"></div>
+<button type="button" class="lnk" id="addriga">+ Aggiungi riga</button>
+<div class="tot" id="tot"></div>
+<p class="note">Prezzi senza IVA. Aliquota, bollo, ritenute e altri calcoli li verifica lo studio.</p>
+</fieldset>
+
+<fieldset>
+<legend>Pagamento</legend>
+<label class="req" for="pag">Come ti pagano</label>
+<select id="pag"><option value="">Scegli</option><option value="bonifico">Bonifico</option><option value="contanti">Contanti</option><option value="carta">Carta</option><option value="altro">Altro (lo studio completa)</option></select>
+<div class="row2">
+<div><label for="data">Data della fattura</label><input id="data" type="date"></div>
+<div><label for="scad">Scadenza pagamento</label><input id="scad" type="date"></div>
+</div>
+<label for="note">Note per lo studio</label>
+<textarea id="note" maxlength="1000" placeholder="Es. già pagato, sconto concordato, altre righe"></textarea>
+</fieldset>
+
+<details id="privacy">
+<summary>Informativa privacy</summary>
+<div id="privacytesto"></div>
+</details>
+<label class="chk"><input type="checkbox" id="okpriv"> <span>Ho letto l'informativa privacy e confermo di poter comunicare allo studio i dati del mio cliente per l'emissione della fattura.</span></label>
+
+<div id="errori" class="errbox hid"></div>
+<div class="acts">
+<button type="submit" class="pri">Prepara richiesta</button>
+</div>
+</form>
+
+<div id="invio" class="hid">
+<h1>Invia allo studio</h1>
+<p class="sub">La pagina non ha salvato niente. La richiesta parte solo quando la invii tu.</p>
+<div class="acts">
+<button type="button" class="pri" id="b_share">Condividi…</button>
+<button type="button" id="b_wa">Invia su WhatsApp</button>
+<button type="button" id="b_mail">Invia per email</button>
+<button type="button" id="b_copy">Copia il testo</button>
+<button type="button" class="lnk" id="b_back">Torna a modificare</button>
+</div>
+<p class="note" id="copiato"></p>
+<pre id="anteprima"></pre>
+</div>
+</div>
+</main>
+
+<script>
+"use strict";
+/* ===== CONFIGURAZIONE DELLO STUDIO: da compilare prima di pubblicare ===== */
+const CONFIG = {
+  whatsapp: "39085835376",            // numero dello studio, solo cifre con prefisso, es. "393331234567"
+  email: "infostudiodecaro@gmail.com",               // email dello studio che riceve le richieste
+  titolare: "Studio De Caro",            // denominazione dello studio (titolare del trattamento)
+  indirizzo: "Via D'Andrea 4, Montesilvano",           // sede dello studio
+  emailPrivacy: "infostudiodecaro@gmail.com"         // contatto per la privacy (può coincidere con email)
+};
+/* ======================================================================== */
+
+const FORMATO = 1;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ---- controlli fiscali ----
+function pivaOk(p){
+  if(!/^[0-9]{11}$/.test(p)) return false;
+  let s=0;
+  for(let i=0;i<11;i++){let d=+p[i]; if(i%2){d*=2; if(d>9)d-=9;} s+=d;}
+  return s%10===0;
+}
+const CF_DISP={0:1,1:0,2:5,3:7,4:9,5:13,6:15,7:17,8:19,9:21,A:1,B:0,C:5,D:7,E:9,F:13,G:15,H:17,I:19,J:21,K:2,L:4,M:18,N:20,O:11,P:3,Q:6,R:8,S:12,T:14,U:16,V:10,W:22,X:25,Y:24,Z:23};
+function cfPersonaOk(c){
+  if(!/^[A-Z]{6}[0-9LMNPQRSTUV]{2}[ABCDEHLMPRST][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/.test(c)) return false;
+  let s=0;
+  for(let i=0;i<15;i++){const ch=c[i]; s+= (i%2===0) ? CF_DISP[ch] : (/[0-9]/.test(ch)? +ch : ch.charCodeAt(0)-65);}
+  return String.fromCharCode(65+s%26)===c[15];
+}
+const cfOk = c => c.length===11 ? pivaOk(c) : cfPersonaOk(c);
+
+// ---- numeri: accetta 1234,56  1234.56  1.234,56 ----
+function numero(s, maxDec){
+  s=String(s).trim().replace(/\s/g,"");
+  if(!s) return null;
+  if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s=s.replace(/\./g,"").replace(",",".");
+  else s=s.replace(",",".");
+  const re=new RegExp("^\\d+(\\.\\d{1,"+maxDec+"})?$");
+  if(!re.test(s)) return null;
+  s=s.replace(/^0+(?=\d)/,"");
+  return s;
+}
+const euro = n => n.toLocaleString("it-IT",{style:"currency",currency:"EUR"});
+
+// ---- codifica: RF1.<base64url(JSON UTF-8)>.<crc32 esadecimale> ----
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(bytes){let c=0xFFFFFFFF;for(const b of bytes)c=CRC_T[(c^b)&0xFF]^(c>>>8);return ((c^0xFFFFFFFF)>>>0).toString(16).padStart(8,"0");}
+function b64url(bytes){let s="";for(const b of bytes)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
+function codifica(obj){const b=new TextEncoder().encode(JSON.stringify(obj));return "RF"+FORMATO+"."+b64url(b)+"."+crc32(b);}
+function idCasuale(n){const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";const r=crypto.getRandomValues(new Uint8Array(n));return Array.from(r,x=>a[x%a.length]).join("");}
+function oraLocale(){const d=new Date(),z=-d.getTimezoneOffset(),p=n=>String(Math.abs(n)).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds())+(z>=0?"+":"-")+p(Math.trunc(z/60))+":"+p(z%60);}
+
+// ---- parametri del link ----
+const P=new URLSearchParams(location.search);
+const CODICE=(P.get("c")||"").trim();
+const CEDENTE=(P.get("n")||"").trim().slice(0,80);
+
+function blocca(msg){$("blocco").textContent=msg;$("blocco").classList.remove("hid");}
+if(!/^[A-Z0-9]{8}$/.test(CODICE)) blocca("Link non valido: manca il codice cliente. Chiedi allo studio il link corretto.");
+else if(!CONFIG.whatsapp && !CONFIG.email) blocca("Pagina non ancora configurata dallo studio.");
+else { $("app").classList.remove("hid"); $("perchi").textContent = CEDENTE ? "Per " + CEDENTE : ""; }
+document.title = CEDENTE ? "Richiesta fattura - " + CEDENTE : "Richiesta fattura";
+if(!CONFIG.whatsapp) $("b_wa").classList.add("hid");
+if(!CONFIG.email) $("b_mail").classList.add("hid");
+if(!navigator.share) $("b_share").classList.add("hid");
+
+// ---- informativa ----
+function campo(v, segnaposto){return v ? esc(v) : "["+segnaposto+"]";}
+$("privacytesto").innerHTML =
+ "<p><b>Titolare del trattamento</b>: "+campo(CONFIG.titolare,"nome dello studio")+", "+campo(CONFIG.indirizzo,"indirizzo")+", "+campo(CONFIG.emailPrivacy||CONFIG.email,"email")+".</p>"+
+ "<p><b>Cosa facciamo con i dati</b>: li usiamo solo per preparare ed emettere la fattura che ci chiedi e per i relativi adempimenti fiscali, sulla base dell'incarico che ci hai affidato e degli obblighi di legge (art. 6, par. 1, lett. b e c, del Regolamento UE 2016/679).</p>"+
+ "<p><b>Dati del tuo cliente</b>: per i dati della persona o dell'ente a cui fatturi, il titolare sei tu; lo studio li tratta per tuo conto, nei limiti dell'incarico. Inserisci solo i dati necessari alla fattura.</p>"+
+ "<p><b>Come viaggiano</b>: questa pagina non salva e non trasmette niente da sola. I dati arrivano allo studio solo quando li invii tu con WhatsApp, email o un'altra app scelta da te, secondo le regole di quel servizio.</p>"+
+ "<p><b>A chi li comunichiamo</b>: alla piattaforma di fatturazione elettronica usata dallo studio per l'invio e al Sistema di Interscambio dell'Agenzia delle Entrate. Non li diffondiamo.</p>"+
+ "<p><b>Per quanto tempo</b>: per il tempo previsto dalla legge per le scritture e i documenti contabili (di norma 10 anni).</p>"+
+ "<p><b>I tuoi diritti</b>: puoi chiedere accesso, rettifica, cancellazione, limitazione e opposizione (artt. 15-22 del Regolamento) scrivendo al contatto sopra, e puoi presentare reclamo al Garante per la protezione dei dati personali.</p>"+
+ "<p><b>Obbligatorietà</b>: senza questi dati non possiamo emettere la fattura.</p>";
+
+// ---- visibilità per tipo cliente e documento ----
+const tipoCliente = () => document.querySelector("input[name=tc]:checked").value;
+const tipoDoc = () => document.querySelector("input[name=tipo]:checked").value;
+function aggiorna(){
+  const k=tipoCliente();
+  document.querySelectorAll("[data-k]").forEach(el=>el.classList.toggle("hid", !el.dataset.k.split(" ").includes(k)));
+  const pf = k==="privato" || (k==="estero" && document.querySelector("input[name=et]:checked").value==="privato");
+  $("box_pf").classList.toggle("hid", !pf); $("box_den").classList.toggle("hid", pf);
+  $("l_den").textContent = k==="pa" ? "Nome dell'ente" : k==="azienda" ? "Ragione sociale (o nome e cognome del professionista)" : "Ragione sociale";
+  $("paese_altro_box").classList.toggle("hid", $("paese").value!=="altro");
+  $("l_cap").classList.toggle("req", k!=="estero");
+  $("nc").classList.toggle("hid", tipoDoc()!=="nota_credito");
+  $("pa_doc").classList.toggle("hid", !$("pa_tipo").value);
+}
+document.querySelectorAll("input[name=tc],input[name=tipo],input[name=et]").forEach(r=>r.addEventListener("change",aggiorna));
+$("pa_tipo").addEventListener("change",aggiorna); $("paese").addEventListener("change",aggiorna);
+
+// ---- righe ----
+let nRighe=0;
+function aggiungiRiga(){
+  nRighe++;
+  const d=document.createElement("div"); d.className="riga";
+  d.innerHTML =
+   '<div class="rh"><span>Riga</span><button type="button" class="lnk" data-del>Rimuovi</button></div>'+
+   '<label class="req">Descrizione</label><textarea data-f="descrizione" maxlength="1000" rows="2"></textarea>'+
+   '<div class="row3"><div><label class="req">Prezzo unitario senza IVA (€)</label><input data-f="prezzo" inputmode="decimal"></div>'+
+   '<div><label class="req">Quantità</label><input data-f="quantita" inputmode="decimal" value="1"></div>'+
+   '<div><label>IVA</label><select data-f="iva"><option value="">Non so</option><option value="22">22%</option><option value="10">10%</option><option value="5">5%</option><option value="4">4%</option><option value="senza">Senza IVA</option></select></div></div>'+
+   '<label>Codice buono Carta del Docente (se c\'è)</label><input data-f="buono" maxlength="35" autocapitalize="off" autocorrect="off" spellcheck="false">';
+  d.querySelector("[data-del]").onclick=()=>{ if($("righe").children.length>1){d.remove();numera();totale();} };
+  d.addEventListener("input",totale);
+  $("righe").appendChild(d); numera();
+}
+function numera(){[...$("righe").children].forEach((r,i)=>{r.querySelector(".rh span").textContent="Riga "+(i+1);r.querySelector("[data-del]").classList.toggle("hid",$("righe").children.length===1);});}
+function totale(){
+  let t=0, ok=true;
+  for(const r of $("righe").children){const p=numero(r.querySelector("[data-f=prezzo]").value,2), q=numero(r.querySelector("[data-f=quantita]").value,8); if(p===null||q===null){ok=false;continue;} t+=Math.round(+p*+q*100)/100;}
+  $("tot").textContent = t>0 ? "Imponibile indicativo: "+euro(t)+(ok?"":" (alcune righe incomplete)") : "";
+}
+$("addriga").onclick=()=>{aggiungiRiga(); $("righe").lastChild.querySelector("textarea").focus();};
+aggiungiRiga(); aggiorna();
+
+// ---- raccolta e controlli ----
+let avvisi=[], avvisiVisti="";
+const v = id => $(id).value.trim();
+const up = id => v(id).toUpperCase().replace(/\s/g,"");
+function segna(id,msg,errs){errs.push(msg); const el=$(id); if(el) el.setAttribute("aria-invalid","true");}
+function raccogli(){
+  document.querySelectorAll("[aria-invalid]").forEach(e=>e.removeAttribute("aria-invalid"));
+  const errs=[], k=tipoCliente(); avvisi=[];
+  const r={formato:FORMATO, codice_cliente:CODICE, id_richiesta:idCasuale(16), inviata_il:oraLocale(), tipo_documento:tipoDoc(), tipo_cliente:k};
+
+  if(r.tipo_documento==="nota_credito"){
+    r.fattura_da_stornare={numero:v("nc_numero"), data:v("nc_data")};
+    if(!r.fattura_da_stornare.numero) segna("nc_numero","Manca il numero della fattura da stornare.",errs);
+    if(!r.fattura_da_stornare.data) segna("nc_data","Manca la data della fattura da stornare.",errs);
+  }
+
+  const c={};
+  if(!$("box_pf").classList.contains("hid")){
+    c.nome=v("pf_nome"); c.cognome=v("pf_cognome");
+    if(!c.nome) segna("pf_nome","Manca il nome del cliente.",errs);
+    if(!c.cognome) segna("pf_cognome","Manca il cognome del cliente.",errs);
+  } else { c.denominazione=v("den"); if(!c.denominazione) segna("den","Manca la ragione sociale del cliente.",errs); }
+  if(k==="azienda"){
+    c.partita_iva=up("piva").replace(/^IT/,""); c.codice_fiscale=up("cf_az"); c.codice_destinatario_o_pec=v("dest");
+    if(!pivaOk(c.partita_iva)) segna("piva","Partita IVA non valida (11 cifre, controlla di averla copiata bene).",errs);
+    if(c.codice_fiscale && !cfOk(c.codice_fiscale)) segna("cf_az","Codice fiscale non valido.",errs);
+    const d=c.codice_destinatario_o_pec;
+    if(d && !/^[A-Za-z0-9]{7}$/.test(d) && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d)) segna("dest","Codice destinatario (7 caratteri) o PEC non valido.",errs);
+    if(/^[A-Za-z0-9]{7}$/.test(d)) c.codice_destinatario_o_pec=d.toUpperCase();
+  }
+  if(k==="privato"){ c.codice_fiscale=up("cf_pr"); if(!cfPersonaOk(c.codice_fiscale)) segna("cf_pr","Codice fiscale non valido.",errs); }
+  if(k==="pa"){
+    c.codice_fiscale=up("cf_pa"); if(!pivaOk(c.codice_fiscale)) segna("cf_pa","Codice fiscale dell'ente non valido (11 cifre).",errs);
+    const pa={codice_ufficio:up("uff"), tipo_documento_acquisto:$("pa_tipo").value, numero_documento:"", data_documento:"", cig:up("cig"), cup:up("cup")};
+    if(!/^[A-Z0-9]{6}$/.test(pa.codice_ufficio)) segna("uff","Il codice univoco ufficio ha 6 caratteri.",errs);
+    if(pa.tipo_documento_acquisto){ pa.numero_documento=v("pa_num"); pa.data_documento=v("pa_data"); if(!pa.numero_documento) segna("pa_num","Manca il numero del documento d'acquisto.",errs); }
+    if(pa.cig && !/^[A-Z0-9]{10}$/.test(pa.cig)) segna("cig","Il CIG di solito ha 10 caratteri: controllalo.",errs);
+    if(pa.cup && !/^[A-Z0-9]{15}$/.test(pa.cup)) segna("cup","Il CUP di solito ha 15 caratteri: controllalo.",errs);
+    if((pa.cig||pa.cup) && !pa.tipo_documento_acquisto) segna("pa_tipo","Con CIG o CUP indica anche ordine, contratto o convenzione.",errs);
+    r.pa=pa;
+  }
+  if(k==="estero"){
+    c.tipo_estero=document.querySelector("input[name=et]:checked").value;
+    c.identificativo_estero=up("idest"); c.paese=$("paese").value==="altro" ? up("paese_altro") : $("paese").value;
+    if(!c.identificativo_estero) segna("idest","Manca l'identificativo fiscale estero.",errs);
+    if(!/^[A-Z]{2}$/.test(c.paese)) segna($("paese").value==="altro"?"paese_altro":"paese","Scegli il paese (o scrivi la sigla di 2 lettere).",errs);
+    else if(c.paese==="IT") segna("paese_altro","Per un cliente italiano scegli Azienda, Privato o Pubblica amministrazione.",errs);
+    if(c.paese && c.identificativo_estero.startsWith(c.paese) && c.identificativo_estero.length>2) avvisi.push("L'identificativo estero inizia con la sigla del paese ("+c.paese+"): lascialo così solo se fa davvero parte del numero.");
+  }
+  c.indirizzo=v("ind"); c.cap=v("cap"); c.comune=v("com");
+  if(k!=="estero"){ c.provincia=up("prov");
+    if(c.provincia && !/^[A-Z]{2}$/.test(c.provincia)) segna("prov","La provincia è una sigla di 2 lettere.",errs);
+    if(!/^[0-9]{5}$/.test(c.cap)) segna("cap","Il CAP ha 5 cifre.",errs); }
+  if(!c.indirizzo) segna("ind","Manca l'indirizzo.",errs);
+  if(!c.comune) segna("com","Manca il comune o la città.",errs);
+  r.cliente=c;
+
+  r.righe=[];
+  [...$("righe").children].forEach((el,i)=>{
+    const g=f=>el.querySelector("[data-f="+f+"]").value.trim();
+    const rr={descrizione:g("descrizione"), quantita:numero(g("quantita"),8), prezzo_unitario:numero(g("prezzo"),2), iva:g("iva"), codice_buono:g("buono")};
+    if(!rr.descrizione) errs.push("Riga "+(i+1)+": manca la descrizione.");
+    if(rr.prezzo_unitario===null) errs.push("Riga "+(i+1)+": prezzo non valido (es. 120 o 120,50).");
+    if(/^\d{1,3}(\.\d{3})+$/.test(g("quantita"))) errs.push("Riga "+(i+1)+": scrivi la quantità senza punti (es. 1500 oppure 1,5).");
+    else if(rr.quantita===null || +rr.quantita<=0) errs.push("Riga "+(i+1)+": quantità non valida.");
+    r.righe.push(rr);
+  });
+
+  r.pagamento={modalita:$("pag").value, data_fattura:v("data"), scadenza:v("scad")};
+  if(!r.pagamento.modalita) segna("pag","Scegli come ti pagano.",errs);
+  if(r.pagamento.data_fattura && r.pagamento.scadenza && r.pagamento.scadenza < r.pagamento.data_fattura) segna("scad","La scadenza è prima della data della fattura.",errs);
+  if(r.tipo_documento==="nota_credito" && r.fattura_da_stornare.data && r.pagamento.data_fattura && r.pagamento.data_fattura < r.fattura_da_stornare.data) segna("data","La nota di credito non può avere data precedente alla fattura da stornare.",errs);
+  r.note=v("note");
+  r.privacy_letta=$("okpriv").checked;
+  if(!r.privacy_letta) segna("okpriv","Conferma di aver letto l'informativa privacy.",errs);
+  return {r,errs};
+}
+
+// ---- testo del messaggio ----
+const it = d => d ? d.split("-").reverse().join("/") : "";
+const ETI={azienda:"Azienda o professionista",privato:"Privato",pa:"Pubblica amministrazione",estero:"Estero"};
+function testo(r){
+  const c=r.cliente, L=[];
+  L.push((r.tipo_documento==="nota_credito"?"NOTA DI CREDITO":"RICHIESTA FATTURA")+(CEDENTE?" - "+CEDENTE:""));
+  if(r.fattura_da_stornare) L.push("Storna fattura n. "+r.fattura_da_stornare.numero+" del "+it(r.fattura_da_stornare.data));
+  L.push("Cliente: "+(c.denominazione||(c.nome+" "+c.cognome))+" ("+ETI[r.tipo_cliente]+(c.tipo_estero?", "+(c.tipo_estero==="privato"?"privato":"azienda"):"")+")");
+  const id=[c.partita_iva&&"P.IVA "+c.partita_iva, c.codice_fiscale&&"CF "+c.codice_fiscale, c.identificativo_estero&&"ID "+c.identificativo_estero].filter(Boolean).join(" - ");
+  if(id) L.push(id);
+  L.push(c.indirizzo+", "+(c.cap?c.cap+" ":"")+c.comune+(c.provincia?" ("+c.provincia+")":"")+(c.paese?", "+c.paese:""));
+  if(r.pa) L.push("Ufficio "+r.pa.codice_ufficio+(r.pa.tipo_documento_acquisto?" - "+r.pa.tipo_documento_acquisto+" "+r.pa.numero_documento:"")+(r.pa.cig?" - CIG "+r.pa.cig:"")+(r.pa.cup?" - CUP "+r.pa.cup:""));
+  let t=0;
+  r.righe.forEach((x,i)=>{const imp=Math.round(+x.prezzo_unitario*+x.quantita*100)/100; t+=imp; L.push((i+1)+") "+x.descrizione.replace(/\s+/g," ").slice(0,60)+" - "+x.quantita+" x "+euro(+x.prezzo_unitario)+" = "+euro(imp));});
+  L.push("Imponibile indicativo: "+euro(t));
+  L.push("Pagamento: "+r.pagamento.modalita+(r.pagamento.scadenza?" entro il "+it(r.pagamento.scadenza):""));
+  if(r.note) L.push("Note: "+r.note.replace(/\s+/g," "));
+  L.push("");
+  L.push("Codice per lo studio (non modificare):");
+  L.push(codifica(r));
+  return L.join("\n");
+}
+
+// ---- invio ----
+let TESTO="";
+$("f").addEventListener("submit",e=>{
+  e.preventDefault();
+  const {r,errs}=raccogli();
+  if(!errs.length && avvisi.length && avvisi.join("|")!==avvisiVisti){ avvisiVisti=avvisi.join("|"); $("errori").innerHTML="<b>Controlla:</b><br>"+avvisi.map(esc).join("<br>")+"<br>Se è tutto giusto, premi di nuovo Prepara richiesta."; $("errori").classList.remove("hid"); $("errori").scrollIntoView({behavior:"smooth",block:"center"}); return; }
+  if(errs.length){ $("errori").innerHTML="<b>Da correggere:</b><br>"+errs.map(esc).join("<br>"); $("errori").classList.remove("hid"); $("errori").scrollIntoView({behavior:"smooth",block:"center"}); return; }
+  $("errori").classList.add("hid");
+  TESTO=testo(r);
+  $("anteprima").textContent=TESTO;
+  $("f").classList.add("hid"); $("invio").classList.remove("hid"); $("copiato").textContent=""; window.scrollTo(0,0);
+});
+$("b_back").onclick=()=>{ $("invio").classList.add("hid"); $("f").classList.remove("hid"); };
+$("b_share").onclick=async()=>{ try{ await navigator.share({text:TESTO}); }catch(_){} };
+$("b_wa").onclick=()=>{ location.href="https://wa.me/"+CONFIG.whatsapp+"?text="+encodeURIComponent(TESTO); };
+$("b_mail").onclick=()=>{ location.href="mailto:"+CONFIG.email+"?subject="+encodeURIComponent("Richiesta fattura"+(CEDENTE?" - "+CEDENTE:""))+"&body="+encodeURIComponent(TESTO); };
+$("b_copy").onclick=async()=>{
+  try{ await navigator.clipboard.writeText(TESTO); $("copiato").textContent="Testo copiato. Incollalo in un messaggio allo studio."; }
+  catch(_){ const s=getSelection(), rg=document.createRange(); rg.selectNodeContents($("anteprima")); s.removeAllRanges(); s.addRange(rg); $("copiato").textContent="Tieni premuto sul testo selezionato e scegli Copia."; }
+};
+</script>
+</body>
+</html>
