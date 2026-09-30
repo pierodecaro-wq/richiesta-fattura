@@ -103,7 +103,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <p class="sub" id="rub_info"></p>
 </div>
 <div class="seg" role="radiogroup">
-<label><input type="radio" name="tc" value="azienda" checked> Azienda o professionista</label>
+<label><input type="radio" name="tc" value="azienda" checked> Azienda, professionista o associazione</label>
 <label><input type="radio" name="tc" value="privato"> Privato</label>
 <label><input type="radio" name="tc" value="pa"> Pubblica amministrazione</label>
 <label><input type="radio" name="tc" value="estero"> Estero</label>
@@ -121,9 +121,10 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 </div>
 
 <div data-k="azienda estero" class="row2">
-<div data-k="azienda"><label class="req" for="piva">Partita IVA</label><input id="piva" inputmode="numeric" maxlength="11"></div>
+<div data-k="azienda"><label for="piva">Partita IVA</label><input id="piva" inputmode="numeric" maxlength="11"></div>
 <div data-k="azienda"><label for="cf_az">Codice fiscale</label><input id="cf_az" maxlength="16" autocapitalize="characters"></div>
 </div>
+<p data-k="azienda" class="sub">Serve almeno uno dei due. Associazioni ed enti senza partita IVA: basta il codice fiscale.</p>
 <div data-k="privato"><label class="req" for="cf_pr">Codice fiscale</label><input id="cf_pr" maxlength="16" autocapitalize="characters"></div>
 
 <div data-k="azienda privato"><label for="dest">Codice destinatario (7 caratteri) o PEC</label><input id="dest" maxlength="256" autocapitalize="off">
@@ -190,7 +191,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <button type="submit" class="pri">Prepara richiesta</button>
 </div>
 </form>
-<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 30/09/2026 n. 5</p>
+<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 30/09/2026 n. 6</p>
 
 <div id="invio" class="hid">
 <h1>Invia allo studio</h1>
@@ -487,7 +488,8 @@ function raccogli(){
   } else { c.denominazione=v("den"); if(!c.denominazione) segna("den","Manca la ragione sociale del cliente.",errs); }
   if(k==="azienda"){
     c.partita_iva=up("piva").replace(/^IT/,""); c.codice_fiscale=up("cf_az");
-    if(!pivaOk(c.partita_iva)) segna("piva","Partita IVA non valida (11 cifre, controlla di averla copiata bene).",errs);
+    if(!c.partita_iva && !c.codice_fiscale) segna("piva","Scrivi la partita IVA o, se il cliente non ce l'ha (associazioni, enti), il codice fiscale.",errs);
+    else if(c.partita_iva && !pivaOk(c.partita_iva)) segna("piva","Partita IVA non valida (11 cifre, controlla di averla copiata bene).",errs);
     if(c.codice_fiscale && !cfOk(c.codice_fiscale)) segna("cf_az","Codice fiscale non valido.",errs);
   }
   if(k==="privato"){ c.codice_fiscale=up("cf_pr"); if(!cfPersonaOk(c.codice_fiscale)) segna("cf_pr","Codice fiscale non valido.",errs); }
