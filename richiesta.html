@@ -69,12 +69,20 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <legend>Documento</legend>
 <div class="seg" role="radiogroup">
 <label><input type="radio" name="tipo" value="fattura" checked> Fattura</label>
+<label><input type="radio" name="tipo" value="fattura_differita"> Fattura differita</label>
 <label><input type="radio" name="tipo" value="nota_credito"> Nota di credito</label>
 </div>
 <div id="nc" class="hid">
 <div class="row2">
 <div><label class="req" for="nc_numero">Numero fattura da stornare</label><input id="nc_numero" maxlength="20"></div>
 <div><label class="req" for="nc_data">Data fattura da stornare</label><input id="nc_data" type="date"></div>
+</div>
+</div>
+<div id="fd" class="hid">
+<p class="sub" style="margin-top:8px">Per le prestazioni o le consegne di un mese intero, fatturate tutte insieme entro il 15 del mese dopo.</p>
+<div class="row2">
+<div><label class="req" for="fd_mese">Mese delle prestazioni</label><input id="fd_mese" type="month"></div>
+<div><label for="fd_rif">Documenti di riferimento</label><input id="fd_rif" maxlength="100" placeholder="Es. DDT 12 e 15, rapportini"></div>
 </div>
 </div>
 <div id="sc_box">
@@ -182,7 +190,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <button type="submit" class="pri">Prepara richiesta</button>
 </div>
 </form>
-<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 30/09/2026 n. 4</p>
+<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 30/09/2026 n. 5</p>
 
 <div id="invio" class="hid">
 <h1>Invia allo studio</h1>
@@ -390,6 +398,8 @@ function aggiorna(){
   $("paese_altro_box").classList.toggle("hid", $("paese").value!=="altro");
   $("l_cap").classList.toggle("req", k!=="estero");
   $("nc").classList.toggle("hid", tipoDoc()!=="nota_credito");
+  $("fd").classList.toggle("hid", tipoDoc()!=="fattura_differita");
+  if(tipoDoc()==="fattura_differita" && !$("fd_mese").value){ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); $("fd_mese").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
   $("sc_box").classList.toggle("hid", tipoDoc()!=="fattura");
   $("sc").classList.toggle("hid", !$("sc_si").checked);
   $("pa_doc").classList.toggle("hid", !$("pa_tipo").value);
@@ -459,6 +469,10 @@ function raccogli(){
     if(!r.fattura_da_stornare.numero) segna("nc_numero","Manca il numero della fattura da stornare.",errs);
     if(!r.fattura_da_stornare.data) segna("nc_data","Manca la data della fattura da stornare.",errs);
   }
+  if(r.tipo_documento==="fattura_differita"){
+    r.differita={mese:v("fd_mese"), riferimento:v("fd_rif")};
+    if(!/^\d{4}-\d{2}$/.test(r.differita.mese)) segna("fd_mese","Indica il mese delle prestazioni.",errs);
+  }
   if(r.tipo_documento==="fattura" && $("sc_si").checked){
     r.scontrino={numero:v("sc_numero"), data:v("sc_data")};
     if(!r.scontrino.numero) segna("sc_numero","Manca il numero dello scontrino.",errs);
@@ -525,6 +539,12 @@ function raccogli(){
   if(r.pagamento.data_fattura && r.pagamento.scadenza && r.pagamento.scadenza < r.pagamento.data_fattura) segna("scad","La scadenza è prima della data della fattura.",errs);
   if(r.tipo_documento==="nota_credito" && r.fattura_da_stornare.data && r.pagamento.data_fattura && r.pagamento.data_fattura < r.fattura_da_stornare.data) segna("data","La nota di credito non può avere data precedente alla fattura da stornare.",errs);
   if(r.scontrino && r.scontrino.data && r.pagamento.data_fattura && r.pagamento.data_fattura < r.scontrino.data) segna("sc_data","Lo scontrino non può avere data successiva alla fattura.",errs);
+  if(r.differita && /^\d{4}-\d{2}$/.test(r.differita.mese)){
+    const oggi=new Date(), df=r.pagamento.data_fattura || (oggi.getFullYear()+"-"+String(oggi.getMonth()+1).padStart(2,"0")+"-"+String(oggi.getDate()).padStart(2,"0"));
+    if(df.slice(0,7) <= r.differita.mese) segna("fd_mese","La fattura differita si fa dopo la fine del mese delle prestazioni.",errs);
+    else { const [a,m]=r.differita.mese.split("-").map(Number), lim=new Date(a,m,15), limIso=lim.getFullYear()+"-"+String(lim.getMonth()+1).padStart(2,"0")+"-15";
+      if(df > limIso) avvisi.push("La fattura differita andrebbe emessa entro il "+it(limIso)+": lo studio verifica."); }
+  }
   r.note=v("note");
   r.privacy_letta=$("okpriv").checked;
   if(!r.privacy_letta) segna("okpriv","Conferma di aver letto l'informativa privacy.",errs);
@@ -536,7 +556,8 @@ const it = d => d ? d.split("-").reverse().join("/") : "";
 const ETI={azienda:"Azienda o professionista",privato:"Privato",pa:"Pubblica amministrazione",estero:"Estero"};
 function testo(r){
   const c=r.cliente, L=[];
-  L.push((r.tipo_documento==="nota_credito"?"NOTA DI CREDITO":"RICHIESTA FATTURA")+(CEDENTE?" - "+CEDENTE:""));
+  L.push((r.tipo_documento==="nota_credito"?"NOTA DI CREDITO":r.tipo_documento==="fattura_differita"?"RICHIESTA FATTURA DIFFERITA":"RICHIESTA FATTURA")+(CEDENTE?" - "+CEDENTE:""));
+  if(r.differita) L.push("Prestazioni di "+r.differita.mese.split("-").reverse().join("/")+(r.differita.riferimento?" - "+r.differita.riferimento:""));
   if(r.fattura_da_stornare) L.push("Storna fattura n. "+r.fattura_da_stornare.numero+" del "+it(r.fattura_da_stornare.data));
   if(r.scontrino) L.push("Scontrino già emesso n. "+r.scontrino.numero+" del "+it(r.scontrino.data));
   L.push("Cliente: "+(c.denominazione||(c.nome+" "+c.cognome))+" ("+ETI[r.tipo_cliente]+(c.tipo_estero?", "+(c.tipo_estero==="privato"?"privato":"azienda"):"")+")");
