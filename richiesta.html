@@ -182,6 +182,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <button type="submit" class="pri">Prepara richiesta</button>
 </div>
 </form>
+<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 30/09/2026 n. 3</p>
 
 <div id="invio" class="hid">
 <h1>Invia allo studio</h1>
@@ -349,6 +350,7 @@ function tendina(inp, elementi, scegli){
   };
   TENDINE.push(chiudi);
   inp.addEventListener("input",()=>mostra(false));
+  inp.addEventListener("focus",()=>mostra(false));
   inp.addEventListener("keydown",e=>{ if(e.key==="Escape") chiudi(); });
   box.querySelector("button.freccia").addEventListener("click",()=>{ if(lista.classList.contains("hid")) mostra(true); else chiudi(); });
   document.addEventListener("click",e=>{ if(!box.contains(e.target)) chiudi(); });
