@@ -156,7 +156,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <div id="righe"></div>
 <button type="button" class="lnk" id="addriga">+ Aggiungi riga</button>
 <div class="tot" id="tot"></div>
-<p class="note">Prezzi senza IVA. Aliquota, bollo, ritenute e altri calcoli li verifica lo studio.</p>
+<p class="note">Prezzi senza IVA, salvo le righe con "IVA inclusa". Aliquota, bollo, ritenute e altri calcoli li verifica lo studio.</p>
 </fieldset>
 
 <fieldset>
@@ -182,7 +182,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <button type="submit" class="pri">Prepara richiesta</button>
 </div>
 </form>
-<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 30/09/2026 n. 3</p>
+<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 30/09/2026 n. 4</p>
 
 <div id="invio" class="hid">
 <h1>Invia allo studio</h1>
@@ -289,7 +289,7 @@ function scriviMem(m){try{localStorage.setItem(MEM,JSON.stringify(m));}catch(_){
 const nomeC = c => c.d || [c.n,c.g].filter(Boolean).join(" ");
 const chiaveC = c => (c.pi||c.cf||c.ie||nomeC(c)).toUpperCase();
 const etiC = c => nomeC(c)+" · "+(c.pi?"P.IVA "+c.pi:c.cf?"CF "+c.cf:c.ie?"ID "+c.ie:c.co||"");
-const etiV = x => x.d.replace(/\s+/g," ").slice(0,80)+(x.p?" · "+euro(+x.p):"");
+const etiV = x => x.d.replace(/\s+/g," ").slice(0,80)+(x.p?" · "+euro(+x.p)+(x.l?" IVA incl.":""):"");
 async function daLink(){
   const m=/(?:^#|&)r=([A-Za-z0-9_-]+)/.exec(location.hash);
   if(!m) return "";
@@ -360,6 +360,7 @@ function usaVoce(riga,x){
   riga.querySelector("[data-f=descrizione]").value=x.d;
   if(x.p) riga.querySelector("[data-f=prezzo]").value=String(x.p).replace(".",",");
   riga.querySelector("[data-f=iva]").value=x.i||"";
+  riga.querySelector("[data-f=ivato]").checked=!!x.l;
   totale();
   (x.b ? riga.querySelector("[data-f=buono]") : riga.querySelector("[data-f=quantita]")).focus();
 }
@@ -370,7 +371,7 @@ function ricorda(r){
   const mem=leggiMem(), miei=mem.miei||{c:[],vo:[]};
   miei.c=[x].concat(miei.c.filter(y=>chiaveC(y)!==chiaveC(x))).slice(0,200);
   for(const rr of r.righe.slice().reverse()){
-    const v={d:rr.descrizione, p:rr.prezzo_unitario, i:rr.iva||undefined, b:rr.codice_buono?1:undefined};
+    const v={d:rr.descrizione, p:rr.prezzo_unitario, i:rr.iva||undefined, b:rr.codice_buono?1:undefined, l:rr.prezzo_ivato?1:undefined};
     Object.keys(v).forEach(k=>{ if(!v[k]) delete v[k]; });
     miei.vo=[v].concat(miei.vo.filter(y=>y.d.trim().toUpperCase()!==v.d.trim().toUpperCase())).slice(0,200);
   }
@@ -405,22 +406,39 @@ function aggiungiRiga(){
    '<div class="rh"><span>Riga</span><button type="button" class="lnk" data-del>Rimuovi</button></div>'+
    '<div data-voce class="hid"><label>Voce</label><div class="tendina"><input data-f="voce" autocomplete="off" role="combobox" aria-expanded="false" placeholder="Tocca ▾ o scrivi per cercare"><button type="button" class="freccia" aria-label="Mostra le voci">▾</button></div></div>'+
    '<label class="req">Descrizione</label><textarea data-f="descrizione" maxlength="1000" rows="2"></textarea>'+
-   '<div class="row3"><div><label class="req">Prezzo unitario senza IVA (€)</label><input data-f="prezzo" inputmode="decimal"></div>'+
+   '<label class="chk" style="margin-top:10px"><input type="checkbox" data-f="ivato"> <span>Il prezzo che scrivo è IVA inclusa</span></label>'+
+   '<div class="row3"><div><label class="req" data-l="prezzo">Prezzo unitario senza IVA (€)</label><input data-f="prezzo" inputmode="decimal"></div>'+
    '<div><label class="req">Quantità</label><input data-f="quantita" inputmode="decimal" value="1"></div>'+
    '<div><label>IVA</label><select data-f="iva"><option value="">Non so</option><option value="22">22%</option><option value="10">10%</option><option value="5">5%</option><option value="4">4%</option><option value="senza">Senza IVA</option></select></div></div>'+
+   '<p class="sub hid" data-hint></p>'+
    '<label>Codice buono Carta del Docente (se c\'è)</label><input data-f="buono" maxlength="35" autocapitalize="off" autocorrect="off" spellcheck="false">';
   d.querySelector("[data-del]").onclick=()=>{ if($("righe").children.length>1){d.remove();numera();totale();} };
-  d.addEventListener("input",totale);
+  d.addEventListener("input",totale); d.addEventListener("change",totale);
   const voce=d.querySelector("[data-f=voce]");
   tendina(voce, ()=>VOCI.map(x=>({eti:etiV(x), val:x})), x=>usaVoce(d,x));
   d.querySelector("[data-voce]").classList.toggle("hid", !VOCI.length);
   $("righe").appendChild(d); numera();
 }
 function numera(){[...$("righe").children].forEach((r,i)=>{r.querySelector(".rh span").textContent="Riga "+(i+1);r.querySelector("[data-del]").classList.toggle("hid",$("righe").children.length===1);});}
+// prezzo IVA inclusa: qui solo una stima; lo scorporo vero lo fa lo studio con l'aliquota del tuo profilo
+const aliquota = v => /^(22|10|5|4)$/.test(v) ? +v : null;
+function netto(lordo, iva){ const a=aliquota(iva); return a===null ? null : Math.round(lordo/(1+a/100)*100)/100; }
 function totale(){
-  let t=0, ok=true;
-  for(const r of $("righe").children){const p=numero(r.querySelector("[data-f=prezzo]").value,2), q=numero(r.querySelector("[data-f=quantita]").value,8); if(p===null||q===null){ok=false;continue;} t+=Math.round(+p*+q*100)/100;}
-  $("tot").textContent = t>0 ? "Imponibile indicativo: "+euro(t)+(ok?"":" (alcune righe incomplete)") : "";
+  let t=0, ok=true, stima=false;
+  for(const r of $("righe").children){
+    const ivato=r.querySelector("[data-f=ivato]").checked, iva=r.querySelector("[data-f=iva]").value;
+    r.querySelector("[data-l=prezzo]").textContent = ivato ? "Prezzo unitario IVA inclusa (€)" : "Prezzo unitario senza IVA (€)";
+    const p=numero(r.querySelector("[data-f=prezzo]").value,2), q=numero(r.querySelector("[data-f=quantita]").value,8), hint=r.querySelector("[data-hint]");
+    hint.classList.toggle("hid", !ivato);
+    if(p===null||q===null){ ok=false; if(ivato) hint.textContent="Lo studio toglie l'IVA con l'aliquota che applichi di solito."; continue; }
+    const lordo=Math.round(+p*+q*100)/100;
+    if(!ivato){ t+=lordo; continue; }
+    const n=netto(lordo, iva);
+    hint.textContent = n===null ? "Totale riga "+euro(lordo)+" IVA inclusa: lo studio toglie l'IVA con l'aliquota che applichi di solito."
+      : "Totale riga "+euro(lordo)+" IVA inclusa, circa "+euro(n)+" senza IVA. Lo studio usa l'aliquota che applichi di solito.";
+    if(n===null) ok=false; else { t+=n; stima=true; }
+  }
+  $("tot").textContent = t>0 ? "Imponibile indicativo: "+euro(t)+(stima?" (stima)":"")+(ok?"":" (alcune righe da completare o da calcolare)") : "";
 }
 $("addriga").onclick=()=>{aggiungiRiga(); $("righe").lastChild.querySelector("textarea").focus();};
 aggiungiRiga(); aggiorna();
@@ -494,6 +512,7 @@ function raccogli(){
   [...$("righe").children].forEach((el,i)=>{
     const g=f=>el.querySelector("[data-f="+f+"]").value.trim();
     const rr={descrizione:g("descrizione"), quantita:numero(g("quantita"),8), prezzo_unitario:numero(g("prezzo"),2), iva:g("iva"), codice_buono:g("buono")};
+    if(el.querySelector("[data-f=ivato]").checked) rr.prezzo_ivato=true;
     if(!rr.descrizione) errs.push("Riga "+(i+1)+": manca la descrizione.");
     if(rr.prezzo_unitario===null) errs.push("Riga "+(i+1)+": prezzo non valido (es. 120 o 120,50).");
     if(/^\d{1,3}(\.\d{3})+$/.test(g("quantita"))) errs.push("Riga "+(i+1)+": scrivi la quantità senza punti (es. 1500 oppure 1,5).");
@@ -526,8 +545,10 @@ function testo(r){
   L.push(c.indirizzo+", "+(c.cap?c.cap+" ":"")+c.comune+(c.provincia?" ("+c.provincia+")":"")+(c.paese?", "+c.paese:""));
   if(r.pa) L.push("Ufficio "+r.pa.codice_ufficio+(r.pa.tipo_documento_acquisto?" - "+r.pa.tipo_documento_acquisto+" "+r.pa.numero_documento:"")+(r.pa.cig?" - CIG "+r.pa.cig:"")+(r.pa.cup?" - CUP "+r.pa.cup:""));
   let t=0;
-  r.righe.forEach((x,i)=>{const imp=Math.round(+x.prezzo_unitario*+x.quantita*100)/100; t+=imp; L.push((i+1)+") "+x.descrizione.replace(/\s+/g," ").slice(0,60)+" - "+x.quantita+" x "+euro(+x.prezzo_unitario)+" = "+euro(imp));});
-  L.push("Imponibile indicativo: "+euro(t));
+  let lordi=false;
+  r.righe.forEach((x,i)=>{const imp=Math.round(+x.prezzo_unitario*+x.quantita*100)/100; if(x.prezzo_ivato) lordi=true; else t+=imp; L.push((i+1)+") "+x.descrizione.replace(/\s+/g," ").slice(0,60)+" - "+x.quantita+" x "+euro(+x.prezzo_unitario)+" = "+euro(imp)+(x.prezzo_ivato?" IVA inclusa":""));});
+  if(!lordi) L.push("Imponibile indicativo: "+euro(t));
+  else L.push("Prezzi IVA inclusa: lo studio toglie l'IVA con l'aliquota del cedente.");
   L.push("Pagamento: "+r.pagamento.modalita+(r.pagamento.scadenza?" entro il "+it(r.pagamento.scadenza):""));
   if(r.note) L.push("Note: "+r.note.replace(/\s+/g," "));
   L.push("");
