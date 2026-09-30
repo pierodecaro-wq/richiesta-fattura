@@ -34,6 +34,9 @@ input[type=date]{min-width:0;-webkit-appearance:none;appearance:none}
 .tot{color:var(--mut);font-size:14px;margin-top:4px}
 button{font:inherit;border-radius:4px;border:1px solid var(--line);background:var(--field);color:var(--fg);padding:10px 14px;min-height:44px;cursor:pointer}
 button.pri{background:var(--acc);border-color:var(--acc);color:var(--accfg);font-weight:600}
+.tendina{position:relative}
+.tendina input{padding-right:46px}
+.tendina button.freccia{position:absolute;right:1px;top:1px;bottom:1px;width:44px;min-height:0;padding:0;border:0;border-left:1px solid var(--line);border-radius:0 4px 4px 0;background:var(--sec);color:var(--fg);font-size:18px;line-height:1}
 button.lnk{border:0;background:none;color:var(--acc);padding:4px;min-height:0}
 .acts{display:grid;gap:8px;margin-top:10px}
 .err{color:var(--err);font-size:13px;margin-top:3px}
@@ -84,7 +87,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <fieldset>
 <legend>A chi fatturi</legend>
 <div id="rub_box" class="hid">
-<label for="rub">Cliente già in rubrica</label><input id="rub" list="rub_l" autocomplete="off" placeholder="Nome, P.IVA o codice fiscale">
+<div id="rub_campo"><label for="rub">Cliente già in rubrica</label><div class="tendina"><input id="rub" list="rub_l" autocomplete="off" placeholder="Tocca ▾ o scrivi nome, P.IVA, CF"><button type="button" class="freccia" aria-label="Mostra i clienti in rubrica">▾</button></div></div>
 <datalist id="rub_l"></datalist>
 <p class="sub" id="rub_info"></p>
 </div>
@@ -307,8 +310,7 @@ function caricaRubrica(problema){
   $("rub_l").innerHTML=CLIENTI.map(c=>'<option value="'+esc(etiC(c))+'">').join("");
   $("voci_l").innerHTML=VOCI.map(x=>'<option value="'+esc(etiV(x))+'">').join("");
   $("rub_box").classList.toggle("hid", !CLIENTI.length && !problema);
-  $("rub").classList.toggle("hid", !CLIENTI.length);
-  $("rub").previousElementSibling.classList.toggle("hid", !CLIENTI.length);
+  $("rub_campo").classList.toggle("hid", !CLIENTI.length);
   $("rub_info").innerHTML=(problema?esc(problema)+" ":"")+(CLIENTI.length||VOCI.length?
     esc(CLIENTI.length+(CLIENTI.length===1?" cliente":" clienti")+" e "+VOCI.length+(VOCI.length===1?" voce":" voci")+" salvati su questo telefono"+(st.il?" (rubrica dello studio del "+it(st.il)+")":"")+". ")+
     '<button type="button" class="lnk" id="b_dim">Dimentica i dati su questo telefono</button>':"");
@@ -329,6 +331,12 @@ function riempi(c){
   document.querySelectorAll("[aria-invalid]").forEach(e=>e.removeAttribute("aria-invalid"));
   aggiorna();
 }
+// la freccia mostra tutto l'elenco: il campo si svuota (i dati già compilati restano) e si apre la tendina
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button.freccia"); if(!b) return;
+  const inp=b.parentNode.querySelector("input"); inp.value=""; inp.focus();
+  try{ if(inp.showPicker) inp.showPicker(); }catch(_){}
+});
 $("rub").addEventListener("input",()=>{ const c=CLIENTI.find(x=>etiC(x)===$("rub").value); if(c) riempi(c); });
 function usaVoce(riga,valore){
   const x=VOCI.find(v=>etiV(v)===valore); if(!x) return;
@@ -378,7 +386,7 @@ function aggiungiRiga(){
   const d=document.createElement("div"); d.className="riga";
   d.innerHTML =
    '<div class="rh"><span>Riga</span><button type="button" class="lnk" data-del>Rimuovi</button></div>'+
-   '<div data-voce class="hid"><label>Voce</label><input data-f="voce" list="voci_l" autocomplete="off" placeholder="Scegli una voce oppure scrivi sotto"></div>'+
+   '<div data-voce class="hid"><label>Voce</label><div class="tendina"><input data-f="voce" list="voci_l" autocomplete="off" placeholder="Tocca ▾ o scrivi per cercare"><button type="button" class="freccia" aria-label="Mostra le voci">▾</button></div></div>'+
    '<label class="req">Descrizione</label><textarea data-f="descrizione" maxlength="1000" rows="2"></textarea>'+
    '<div class="row3"><div><label class="req">Prezzo unitario senza IVA (€)</label><input data-f="prezzo" inputmode="decimal"></div>'+
    '<div><label class="req">Quantità</label><input data-f="quantita" inputmode="decimal" value="1"></div>'+
