@@ -36,6 +36,10 @@ button{font:inherit;border-radius:4px;border:1px solid var(--line);background:va
 button.pri{background:var(--acc);border-color:var(--acc);color:var(--accfg);font-weight:600}
 .tendina{position:relative}
 .tendina input{padding-right:46px}
+.lista{position:absolute;left:0;right:0;top:100%;z-index:20;max-height:280px;overflow-y:auto;background:var(--field);border:1px solid var(--line);border-radius:4px;box-shadow:0 6px 16px rgba(0,0,0,.18)}
+.lista button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;min-height:44px;padding:10px 12px}
+.lista button:last-child{border-bottom:0}
+.lista .vuota{padding:10px 12px;color:var(--mut)}
 .tendina button.freccia{position:absolute;right:1px;top:1px;bottom:1px;width:44px;min-height:0;padding:0;border:0;border-left:1px solid var(--line);border-radius:0 4px 4px 0;background:var(--sec);color:var(--fg);font-size:18px;line-height:1}
 button.lnk{border:0;background:none;color:var(--acc);padding:4px;min-height:0}
 .acts{display:grid;gap:8px;margin-top:10px}
@@ -87,8 +91,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <fieldset>
 <legend>A chi fatturi</legend>
 <div id="rub_box" class="hid">
-<div id="rub_campo"><label for="rub">Cliente già in rubrica</label><div class="tendina"><input id="rub" list="rub_l" autocomplete="off" placeholder="Tocca ▾ o scrivi nome, P.IVA, CF"><button type="button" class="freccia" aria-label="Mostra i clienti in rubrica">▾</button></div></div>
-<datalist id="rub_l"></datalist>
+<div id="rub_campo"><label for="rub">Cliente già in rubrica</label><div class="tendina"><input id="rub" autocomplete="off" role="combobox" aria-expanded="false" placeholder="Tocca ▾ o scrivi nome, P.IVA, CF"><button type="button" class="freccia" aria-label="Mostra i clienti in rubrica">▾</button></div></div>
 <p class="sub" id="rub_info"></p>
 </div>
 <div class="seg" role="radiogroup">
@@ -150,7 +153,6 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 
 <fieldset>
 <legend>Cosa fatturi</legend>
-<datalist id="voci_l"></datalist>
 <div id="righe"></div>
 <button type="button" class="lnk" id="addriga">+ Aggiungi riga</button>
 <div class="tot" id="tot"></div>
@@ -307,8 +309,6 @@ function caricaRubrica(problema){
   CLIENTI.sort((a,b)=>nomeC(a).localeCompare(nomeC(b),"it"));
   const vv=new Set(); VOCI=[];
   for(const x of st.vo.concat(miei.vo)){ const k=x.d.trim().toUpperCase(); if(k && !vv.has(k)){ vv.add(k); VOCI.push(x); } }
-  $("rub_l").innerHTML=CLIENTI.map(c=>'<option value="'+esc(etiC(c))+'">').join("");
-  $("voci_l").innerHTML=VOCI.map(x=>'<option value="'+esc(etiV(x))+'">').join("");
   $("rub_box").classList.toggle("hid", !CLIENTI.length && !problema);
   $("rub_campo").classList.toggle("hid", !CLIENTI.length);
   $("rub_info").innerHTML=(problema?esc(problema)+" ":"")+(CLIENTI.length||VOCI.length?
@@ -331,15 +331,30 @@ function riempi(c){
   document.querySelectorAll("[aria-invalid]").forEach(e=>e.removeAttribute("aria-invalid"));
   aggiorna();
 }
-// la freccia mostra tutto l'elenco: il campo si svuota (i dati già compilati restano) e si apre la tendina
-document.addEventListener("click",e=>{
-  const b=e.target.closest("button.freccia"); if(!b) return;
-  const inp=b.parentNode.querySelector("input"); inp.value=""; inp.focus();
-  try{ if(inp.showPicker) inp.showPicker(); }catch(_){}
-});
-$("rub").addEventListener("input",()=>{ const c=CLIENTI.find(x=>etiC(x)===$("rub").value); if(c) riempi(c); });
-function usaVoce(riga,valore){
-  const x=VOCI.find(v=>etiV(v)===valore); if(!x) return;
+// elenco a tendina disegnato dalla pagina (la tendina del browser, datalist, sui telefoni spesso non si apre)
+const TENDINE=[];
+function tendina(inp, elementi, scegli){
+  const box=inp.parentNode, lista=document.createElement("div");
+  lista.className="lista hid"; lista.setAttribute("role","listbox"); box.appendChild(lista);
+  const chiudi=()=>{ lista.classList.add("hid"); inp.setAttribute("aria-expanded","false"); };
+  const mostra=tutto=>{
+    TENDINE.forEach(c=>c()); 
+    const q=tutto?"":inp.value.trim().toUpperCase().split(/\s+/).filter(Boolean);
+    const el=elementi().filter(x=>!q.length||q.every(p=>x.eti.toUpperCase().includes(p))).slice(0,60);
+    lista.innerHTML="";
+    el.forEach(x=>{ const b=document.createElement("button"); b.type="button"; b.setAttribute("role","option"); b.textContent=x.eti;
+      b.onclick=()=>{ chiudi(); inp.value=x.eti; scegli(x.val); }; lista.appendChild(b); });
+    if(!el.length){ const v=document.createElement("div"); v.className="vuota"; v.textContent="Nessun risultato"; lista.appendChild(v); }
+    lista.classList.remove("hid"); inp.setAttribute("aria-expanded","true");
+  };
+  TENDINE.push(chiudi);
+  inp.addEventListener("input",()=>mostra(false));
+  inp.addEventListener("keydown",e=>{ if(e.key==="Escape") chiudi(); });
+  box.querySelector("button.freccia").addEventListener("click",()=>{ if(lista.classList.contains("hid")) mostra(true); else chiudi(); });
+  document.addEventListener("click",e=>{ if(!box.contains(e.target)) chiudi(); });
+}
+tendina($("rub"), ()=>CLIENTI.map(c=>({eti:etiC(c), val:c})), riempi);
+function usaVoce(riga,x){
   riga.querySelector("[data-f=descrizione]").value=x.d;
   if(x.p) riga.querySelector("[data-f=prezzo]").value=String(x.p).replace(".",",");
   riga.querySelector("[data-f=iva]").value=x.i||"";
@@ -386,7 +401,7 @@ function aggiungiRiga(){
   const d=document.createElement("div"); d.className="riga";
   d.innerHTML =
    '<div class="rh"><span>Riga</span><button type="button" class="lnk" data-del>Rimuovi</button></div>'+
-   '<div data-voce class="hid"><label>Voce</label><div class="tendina"><input data-f="voce" list="voci_l" autocomplete="off" placeholder="Tocca ▾ o scrivi per cercare"><button type="button" class="freccia" aria-label="Mostra le voci">▾</button></div></div>'+
+   '<div data-voce class="hid"><label>Voce</label><div class="tendina"><input data-f="voce" autocomplete="off" role="combobox" aria-expanded="false" placeholder="Tocca ▾ o scrivi per cercare"><button type="button" class="freccia" aria-label="Mostra le voci">▾</button></div></div>'+
    '<label class="req">Descrizione</label><textarea data-f="descrizione" maxlength="1000" rows="2"></textarea>'+
    '<div class="row3"><div><label class="req">Prezzo unitario senza IVA (€)</label><input data-f="prezzo" inputmode="decimal"></div>'+
    '<div><label class="req">Quantità</label><input data-f="quantita" inputmode="decimal" value="1"></div>'+
@@ -395,7 +410,7 @@ function aggiungiRiga(){
   d.querySelector("[data-del]").onclick=()=>{ if($("righe").children.length>1){d.remove();numera();totale();} };
   d.addEventListener("input",totale);
   const voce=d.querySelector("[data-f=voce]");
-  voce.addEventListener("change",()=>usaVoce(d,voce.value)); voce.addEventListener("input",()=>usaVoce(d,voce.value));
+  tendina(voce, ()=>VOCI.map(x=>({eti:etiV(x), val:x})), x=>usaVoce(d,x));
   d.querySelector("[data-voce]").classList.toggle("hid", !VOCI.length);
   $("righe").appendChild(d); numera();
 }
