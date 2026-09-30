@@ -83,6 +83,11 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 
 <fieldset>
 <legend>A chi fatturi</legend>
+<div id="rub_box" class="hid">
+<label for="rub">Cliente già in rubrica</label><input id="rub" list="rub_l" autocomplete="off" placeholder="Nome, P.IVA o codice fiscale">
+<datalist id="rub_l"></datalist>
+<p class="sub" id="rub_info"></p>
+</div>
 <div class="seg" role="radiogroup">
 <label><input type="radio" name="tc" value="azienda" checked> Azienda o professionista</label>
 <label><input type="radio" name="tc" value="privato"> Privato</label>
@@ -142,6 +147,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 
 <fieldset>
 <legend>Cosa fatturi</legend>
+<datalist id="voci_l"></datalist>
 <div id="righe"></div>
 <button type="button" class="lnk" id="addriga">+ Aggiungi riga</button>
 <div class="tot" id="tot"></div>
@@ -262,11 +268,89 @@ $("privacytesto").innerHTML =
  "<p><b>Titolare del trattamento</b>: "+campo(CONFIG.titolare,"nome dello studio")+", "+campo(CONFIG.indirizzo,"indirizzo")+", "+campo(CONFIG.emailPrivacy||CONFIG.email,"email")+".</p>"+
  "<p><b>Cosa facciamo con i dati</b>: li usiamo solo per preparare ed emettere la fattura che ci chiedi e per i relativi adempimenti fiscali, sulla base dell'incarico che ci hai affidato e degli obblighi di legge (art. 6, par. 1, lett. b e c, del Regolamento UE 2016/679).</p>"+
  "<p><b>Dati del tuo cliente</b>: per i dati della persona o dell'ente a cui fatturi, il titolare sei tu; lo studio li tratta per tuo conto, nei limiti dell'incarico. Inserisci solo i dati necessari alla fattura.</p>"+
- "<p><b>Come viaggiano</b>: questa pagina non salva e non trasmette niente da sola. I dati arrivano allo studio solo quando li invii tu con WhatsApp, email o un'altra app scelta da te, secondo le regole di quel servizio.</p>"+
+ "<p><b>Come viaggiano</b>: questa pagina non trasmette niente da sola. I dati arrivano allo studio solo quando li invii tu con WhatsApp, email o un'altra app scelta da te, secondo le regole di quel servizio.</p>"+
+ "<p><b>Cosa resta sul telefono</b>: per non farti riscrivere i dati, la pagina ricorda su questo telefono i clienti e le voci che usi e, se il link li contiene, quelli della tua rubrica tenuta dallo studio. Non vanno a nessun server: il link li porta nella parte dopo il simbolo #, che il browser non invia. Per questo il link è personale e non va inoltrato. Puoi cancellarli quando vuoi con \"Dimentica i dati su questo telefono\".</p>"+
  "<p><b>A chi li comunichiamo</b>: alla piattaforma di fatturazione elettronica usata dallo studio per l'invio e al Sistema di Interscambio dell'Agenzia delle Entrate. Non li diffondiamo.</p>"+
  "<p><b>Per quanto tempo</b>: per il tempo previsto dalla legge per le scritture e i documenti contabili (di norma 10 anni).</p>"+
  "<p><b>I tuoi diritti</b>: puoi chiedere accesso, rettifica, cancellazione, limitazione e opposizione (artt. 15-22 del Regolamento) scrivendo al contatto sopra, e puoi presentare reclamo al Garante per la protezione dei dati personali.</p>"+
  "<p><b>Obbligatorietà</b>: senza questi dati non possiamo emettere la fattura.</p>";
+
+// ---- rubrica: dal link (dopo #r=) e memoria del telefono ----
+const MEM="rf_rubrica_"+CODICE;
+let CLIENTI=[], VOCI=[];
+function leggiMem(){try{return JSON.parse(localStorage.getItem(MEM))||{};}catch(_){return {};}}
+function scriviMem(m){try{localStorage.setItem(MEM,JSON.stringify(m));}catch(_){}}
+const nomeC = c => c.d || [c.n,c.g].filter(Boolean).join(" ");
+const chiaveC = c => (c.pi||c.cf||c.ie||nomeC(c)).toUpperCase();
+const etiC = c => nomeC(c)+" · "+(c.pi?"P.IVA "+c.pi:c.cf?"CF "+c.cf:c.ie?"ID "+c.ie:c.co||"");
+const etiV = x => x.d.replace(/\s+/g," ").slice(0,80)+(x.p?" · "+euro(+x.p):"");
+async function daLink(){
+  const m=/(?:^#|&)r=([A-Za-z0-9_-]+)/.exec(location.hash);
+  if(!m) return "";
+  history.replaceState(null,"",location.pathname+location.search);
+  try{
+    const b=m[1].replace(/-/g,"+").replace(/_/g,"/"), bin=atob(b+"===".slice((b.length+3)%4));
+    const flusso=new Blob([Uint8Array.from(bin,c=>c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    const r=JSON.parse(await new Response(flusso).text());
+    if(r.v!==1) throw new Error("versione");
+    const mem=leggiMem(); mem.studio={il:r.il, c:r.c||[], vo:r.vo||[]}; scriviMem(mem);
+    return "";
+  }catch(_){ return "La rubrica nel link non si legge: forse il link è stato tagliato. Puoi scrivere i dati a mano o chiedere allo studio di rimandarlo."; }
+}
+function caricaRubrica(problema){
+  const mem=leggiMem(), st=mem.studio||{c:[],vo:[]}, miei=mem.miei||{c:[],vo:[]};
+  const visti=new Set(); CLIENTI=[];
+  for(const c of st.c.concat(miei.c)){ const k=chiaveC(c); if(k && !visti.has(k)){ visti.add(k); CLIENTI.push(c); } }
+  CLIENTI.sort((a,b)=>nomeC(a).localeCompare(nomeC(b),"it"));
+  const vv=new Set(); VOCI=[];
+  for(const x of st.vo.concat(miei.vo)){ const k=x.d.trim().toUpperCase(); if(k && !vv.has(k)){ vv.add(k); VOCI.push(x); } }
+  $("rub_l").innerHTML=CLIENTI.map(c=>'<option value="'+esc(etiC(c))+'">').join("");
+  $("voci_l").innerHTML=VOCI.map(x=>'<option value="'+esc(etiV(x))+'">').join("");
+  $("rub_box").classList.toggle("hid", !CLIENTI.length && !problema);
+  $("rub").classList.toggle("hid", !CLIENTI.length);
+  $("rub").previousElementSibling.classList.toggle("hid", !CLIENTI.length);
+  $("rub_info").innerHTML=(problema?esc(problema)+" ":"")+(CLIENTI.length||VOCI.length?
+    esc(CLIENTI.length+(CLIENTI.length===1?" cliente":" clienti")+" e "+VOCI.length+(VOCI.length===1?" voce":" voci")+" salvati su questo telefono"+(st.il?" (rubrica dello studio del "+it(st.il)+")":"")+". ")+
+    '<button type="button" class="lnk" id="b_dim">Dimentica i dati su questo telefono</button>':"");
+  const bd=$("b_dim"); if(bd) bd.onclick=()=>{ try{localStorage.removeItem(MEM);}catch(_){} $("rub").value=""; caricaRubrica(""); };
+  document.querySelectorAll("#righe [data-voce]").forEach(x=>x.classList.toggle("hid", !VOCI.length));
+}
+function metti(id,v){ $(id).value=v||""; }
+function riempi(c){
+  document.querySelector("input[name=tc][value="+c.t+"]").checked=true;
+  if(c.t==="estero") document.querySelector("input[name=et][value="+(c.te==="privato"?"privato":"azienda")+"]").checked=true;
+  const persona = c.t==="privato" || (c.t==="estero" && c.te==="privato");
+  metti("den", persona?"":nomeC(c)); metti("pf_nome", persona?c.n:""); metti("pf_cognome", persona?c.g:"");
+  metti("piva", c.t==="azienda"?c.pi:""); metti("cf_az", c.t==="azienda"?c.cf:""); metti("cf_pr", c.t==="privato"?c.cf:""); metti("cf_pa", c.t==="pa"?c.cf:"");
+  metti("dest", c.de); metti("uff", c.uf); metti("idest", c.ie);
+  metti("ind", c.i); metti("com", c.co); metti("cap", c.cp); metti("prov", c.pr);
+  if(c.t==="estero"){ const noto=[...$("paese").options].some(o=>o.value===c.pa); $("paese").value=noto?c.pa:"altro"; metti("paese_altro", noto?"":c.pa); }
+  else { $("paese").value=""; metti("paese_altro",""); }
+  document.querySelectorAll("[aria-invalid]").forEach(e=>e.removeAttribute("aria-invalid"));
+  aggiorna();
+}
+$("rub").addEventListener("input",()=>{ const c=CLIENTI.find(x=>etiC(x)===$("rub").value); if(c) riempi(c); });
+function usaVoce(riga,valore){
+  const x=VOCI.find(v=>etiV(v)===valore); if(!x) return;
+  riga.querySelector("[data-f=descrizione]").value=x.d;
+  if(x.p) riga.querySelector("[data-f=prezzo]").value=String(x.p).replace(".",",");
+  riga.querySelector("[data-f=iva]").value=x.i||"";
+  totale();
+  (x.b ? riga.querySelector("[data-f=buono]") : riga.querySelector("[data-f=quantita]")).focus();
+}
+function ricorda(r){
+  const c=r.cliente, x={t:r.tipo_cliente, d:c.denominazione, n:c.nome, g:c.cognome, pi:c.partita_iva, cf:c.codice_fiscale, de:c.codice_destinatario_o_pec,
+    i:c.indirizzo, cp:c.cap, co:c.comune, pr:c.provincia, pa:c.paese, te:c.tipo_estero, ie:c.identificativo_estero, uf:r.pa&&r.pa.codice_ufficio};
+  Object.keys(x).forEach(k=>{ if(!x[k]) delete x[k]; });
+  const mem=leggiMem(), miei=mem.miei||{c:[],vo:[]};
+  miei.c=[x].concat(miei.c.filter(y=>chiaveC(y)!==chiaveC(x))).slice(0,200);
+  for(const rr of r.righe.slice().reverse()){
+    const v={d:rr.descrizione, p:rr.prezzo_unitario, i:rr.iva||undefined, b:rr.codice_buono?1:undefined};
+    Object.keys(v).forEach(k=>{ if(!v[k]) delete v[k]; });
+    miei.vo=[v].concat(miei.vo.filter(y=>y.d.trim().toUpperCase()!==v.d.trim().toUpperCase())).slice(0,200);
+  }
+  mem.miei=miei; scriviMem(mem); caricaRubrica("");
+}
 
 // ---- visibilità per tipo cliente e documento ----
 const tipoCliente = () => document.querySelector("input[name=tc]:checked").value;
@@ -294,6 +378,7 @@ function aggiungiRiga(){
   const d=document.createElement("div"); d.className="riga";
   d.innerHTML =
    '<div class="rh"><span>Riga</span><button type="button" class="lnk" data-del>Rimuovi</button></div>'+
+   '<div data-voce class="hid"><label>Voce</label><input data-f="voce" list="voci_l" autocomplete="off" placeholder="Scegli una voce oppure scrivi sotto"></div>'+
    '<label class="req">Descrizione</label><textarea data-f="descrizione" maxlength="1000" rows="2"></textarea>'+
    '<div class="row3"><div><label class="req">Prezzo unitario senza IVA (€)</label><input data-f="prezzo" inputmode="decimal"></div>'+
    '<div><label class="req">Quantità</label><input data-f="quantita" inputmode="decimal" value="1"></div>'+
@@ -301,6 +386,9 @@ function aggiungiRiga(){
    '<label>Codice buono Carta del Docente (se c\'è)</label><input data-f="buono" maxlength="35" autocapitalize="off" autocorrect="off" spellcheck="false">';
   d.querySelector("[data-del]").onclick=()=>{ if($("righe").children.length>1){d.remove();numera();totale();} };
   d.addEventListener("input",totale);
+  const voce=d.querySelector("[data-f=voce]");
+  voce.addEventListener("change",()=>usaVoce(d,voce.value)); voce.addEventListener("input",()=>usaVoce(d,voce.value));
+  d.querySelector("[data-voce]").classList.toggle("hid", !VOCI.length);
   $("righe").appendChild(d); numera();
 }
 function numera(){[...$("righe").children].forEach((r,i)=>{r.querySelector(".rh span").textContent="Riga "+(i+1);r.querySelector("[data-del]").classList.toggle("hid",$("righe").children.length===1);});}
@@ -311,6 +399,7 @@ function totale(){
 }
 $("addriga").onclick=()=>{aggiungiRiga(); $("righe").lastChild.querySelector("textarea").focus();};
 aggiungiRiga(); aggiorna();
+daLink().then(caricaRubrica);
 
 // ---- raccolta e controlli ----
 let avvisi=[], avvisiVisti="";
@@ -431,6 +520,7 @@ $("f").addEventListener("submit",e=>{
   if(errs.length){ $("errori").innerHTML="<b>Da correggere:</b><br>"+errs.map(esc).join("<br>"); $("errori").classList.remove("hid"); $("errori").scrollIntoView({behavior:"smooth",block:"center"}); return; }
   $("errori").classList.add("hid");
   TESTO=testo(r);
+  ricorda(r);
   $("anteprima").textContent=TESTO;
   $("f").classList.add("hid"); $("invio").classList.remove("hid"); $("copiato").textContent=""; window.scrollTo(0,0);
 });
