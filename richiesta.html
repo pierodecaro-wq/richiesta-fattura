@@ -70,6 +70,15 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <div><label class="req" for="nc_data">Data fattura da stornare</label><input id="nc_data" type="date"></div>
 </div>
 </div>
+<div id="sc_box">
+<label class="chk" style="margin-top:12px"><input type="checkbox" id="sc_si"> <span>Al cliente ho già fatto lo scontrino</span></label>
+<div id="sc" class="hid">
+<div class="row2">
+<div><label class="req" for="sc_numero">Numero scontrino</label><input id="sc_numero" maxlength="20" placeholder="Es. 0012-0034"></div>
+<div><label class="req" for="sc_data">Data scontrino</label><input id="sc_data" type="date"></div>
+</div>
+</div>
+</div>
 </fieldset>
 
 <fieldset>
@@ -271,10 +280,12 @@ function aggiorna(){
   $("paese_altro_box").classList.toggle("hid", $("paese").value!=="altro");
   $("l_cap").classList.toggle("req", k!=="estero");
   $("nc").classList.toggle("hid", tipoDoc()!=="nota_credito");
+  $("sc_box").classList.toggle("hid", tipoDoc()!=="fattura");
+  $("sc").classList.toggle("hid", !$("sc_si").checked);
   $("pa_doc").classList.toggle("hid", !$("pa_tipo").value);
 }
 document.querySelectorAll("input[name=tc],input[name=tipo],input[name=et]").forEach(r=>r.addEventListener("change",aggiorna));
-$("pa_tipo").addEventListener("change",aggiorna); $("paese").addEventListener("change",aggiorna);
+$("pa_tipo").addEventListener("change",aggiorna); $("sc_si").addEventListener("change",aggiorna); $("paese").addEventListener("change",aggiorna);
 
 // ---- righe ----
 let nRighe=0;
@@ -315,6 +326,11 @@ function raccogli(){
     r.fattura_da_stornare={numero:v("nc_numero"), data:v("nc_data")};
     if(!r.fattura_da_stornare.numero) segna("nc_numero","Manca il numero della fattura da stornare.",errs);
     if(!r.fattura_da_stornare.data) segna("nc_data","Manca la data della fattura da stornare.",errs);
+  }
+  if(r.tipo_documento==="fattura" && $("sc_si").checked){
+    r.scontrino={numero:v("sc_numero"), data:v("sc_data")};
+    if(!r.scontrino.numero) segna("sc_numero","Manca il numero dello scontrino.",errs);
+    if(!r.scontrino.data) segna("sc_data","Manca la data dello scontrino.",errs);
   }
 
   const c={};
@@ -375,6 +391,7 @@ function raccogli(){
   if(!r.pagamento.modalita) segna("pag","Scegli come ti pagano.",errs);
   if(r.pagamento.data_fattura && r.pagamento.scadenza && r.pagamento.scadenza < r.pagamento.data_fattura) segna("scad","La scadenza è prima della data della fattura.",errs);
   if(r.tipo_documento==="nota_credito" && r.fattura_da_stornare.data && r.pagamento.data_fattura && r.pagamento.data_fattura < r.fattura_da_stornare.data) segna("data","La nota di credito non può avere data precedente alla fattura da stornare.",errs);
+  if(r.scontrino && r.scontrino.data && r.pagamento.data_fattura && r.pagamento.data_fattura < r.scontrino.data) segna("sc_data","Lo scontrino non può avere data successiva alla fattura.",errs);
   r.note=v("note");
   r.privacy_letta=$("okpriv").checked;
   if(!r.privacy_letta) segna("okpriv","Conferma di aver letto l'informativa privacy.",errs);
@@ -388,6 +405,7 @@ function testo(r){
   const c=r.cliente, L=[];
   L.push((r.tipo_documento==="nota_credito"?"NOTA DI CREDITO":"RICHIESTA FATTURA")+(CEDENTE?" - "+CEDENTE:""));
   if(r.fattura_da_stornare) L.push("Storna fattura n. "+r.fattura_da_stornare.numero+" del "+it(r.fattura_da_stornare.data));
+  if(r.scontrino) L.push("Scontrino già emesso n. "+r.scontrino.numero+" del "+it(r.scontrino.data));
   L.push("Cliente: "+(c.denominazione||(c.nome+" "+c.cognome))+" ("+ETI[r.tipo_cliente]+(c.tipo_estero?", "+(c.tipo_estero==="privato"?"privato":"azienda"):"")+")");
   const id=[c.partita_iva&&"P.IVA "+c.partita_iva, c.codice_fiscale&&"CF "+c.codice_fiscale, c.identificativo_estero&&"ID "+c.identificativo_estero].filter(Boolean).join(" - ");
   if(id) L.push(id);
