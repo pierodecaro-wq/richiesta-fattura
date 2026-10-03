@@ -103,10 +103,6 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <div id="rub_campo"><label for="rub">Cliente già in rubrica</label><div class="tendina"><input id="rub" autocomplete="off" role="combobox" aria-expanded="false" placeholder="Tocca la freccia o scrivi per cercare"><button type="button" class="freccia" aria-label="Mostra i clienti in rubrica"><svg viewBox="0 0 12 12" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>
 <p class="sub" id="rub_info"></p>
 </div>
-<div id="rub_manca" class="hid"><button type="button" class="lnk" id="b_incolla" style="text-align:left">Lo studio ti ha mandato i tuoi clienti e voci ma non li vedi?</button>
-<div id="incolla_box" class="hid"><p class="note">Alcuni browser, come Edge su iPhone, aprono il link senza clienti e voci. Puoi aprirlo con Safari o Chrome, oppure: nel messaggio dello studio tieni premuto il link, scegli "Copia" e incollalo qui.</p>
-<label for="incolla">Link ricevuto dallo studio</label><textarea id="incolla" rows="3" autocomplete="off"></textarea>
-<div class="err" id="incolla_err"></div><button type="button" id="b_usa" style="margin-top:6px">Usa questo link</button></div></div>
 <div class="seg" role="radiogroup">
 <label><input type="radio" name="tc" value="azienda" checked> Azienda, professionista o associazione</label>
 <label><input type="radio" name="tc" value="privato"> Privato</label>
@@ -196,7 +192,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <button type="submit" class="pri">Prepara richiesta</button>
 </div>
 </form>
-<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 03/10/2026 n. 9</p>
+<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 03/10/2026 n. 8</p>
 
 <div id="invio" class="hid">
 <h1>Invia allo studio</h1>
@@ -311,19 +307,15 @@ const etiV = x => x.d.replace(/\s+/g," ").slice(0,80)+(x.p?" · "+euro(+x.p)+(x.
 async function daLink(){
   const m=/(?:^#|&)r=([A-Za-z0-9_-]+)/.exec(location.hash);
   if(!m) return "";
-  const esito=await leggiRubrica(m[1]);
-  // la rubrica esce dalla barra degli indirizzi solo se è salvata: altrimenti serve di nuovo alla prossima apertura
-  if(!esito && MEMORIA_OK) history.replaceState(null,"",location.pathname+location.search);
-  return esito;
-}
-async function leggiRubrica(dati){
   try{
-    const b=dati.replace(/-/g,"+").replace(/_/g,"/"), bin=atob(b+"===".slice((b.length+3)%4));
+    const b=m[1].replace(/-/g,"+").replace(/_/g,"/"), bin=atob(b+"===".slice((b.length+3)%4));
     const flusso=new Blob([Uint8Array.from(bin,c=>c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
     const r=JSON.parse(await new Response(flusso).text());
     if(r.v!==1) throw new Error("versione");
     const mem=leggiMem(); mem.studio={il:r.il, c:r.c||[], vo:r.vo||[]};
     MEMORIA_OK=scriviMem(mem);
+    // la rubrica esce dalla barra degli indirizzi solo se è salvata: altrimenti serve di nuovo alla prossima apertura
+    if(MEMORIA_OK) history.replaceState(null,"",location.pathname+location.search);
     return "";
   }catch(_){ return "La rubrica nel link non si legge: forse il link è stato tagliato. Puoi scrivere i dati a mano o chiedere allo studio di rimandarlo."; }
 }
@@ -336,7 +328,6 @@ function caricaRubrica(problema){
   for(const x of st.vo.concat(miei.vo)){ const k=x.d.trim().toUpperCase(); if(k && !vv.has(k)){ vv.add(k); VOCI.push(x); } }
   $("rub_box").classList.toggle("hid", !CLIENTI.length && !problema);
   $("rub_campo").classList.toggle("hid", !CLIENTI.length);
-  $("rub_manca").classList.toggle("hid", CLIENTI.length>0 || VOCI.length>0);
   $("rub_info").innerHTML=(problema?esc(problema)+" ":"")+(CLIENTI.length||VOCI.length?
     esc(CLIENTI.length+(CLIENTI.length===1?" cliente":" clienti")+" e "+VOCI.length+(VOCI.length===1?" voce":" voci")+(MEMORIA_OK?" salvati su questo telefono":" dal link")+(st.il?" (rubrica dello studio del "+it(st.il)+")":"")+". "+(MEMORIA_OK?"":"Questo browser non lascia salvarli: la prossima volta apri di nuovo il link ricevuto dallo studio. "))+
     '<button type="button" class="lnk" id="b_dim">Dimentica i dati su questo telefono</button>':"");
@@ -467,17 +458,6 @@ function totale(){
   }
   $("tot").textContent = t>0 ? "Imponibile indicativo: "+euro(t)+(stima?" (stima)":"")+(ok?"":" (alcune righe da completare o da calcolare)") : "";
 }
-$("b_incolla").onclick=()=>{ $("incolla_box").classList.toggle("hid"); if(!$("incolla_box").classList.contains("hid")) $("incolla").focus(); };
-$("b_usa").onclick=async()=>{
-  const t=$("incolla").value.trim(), err=$("incolla_err"); err.textContent="";
-  const c=/[?&]c=([^&#\s]+)/.exec(t), r=/#(?:[^\s]*&)?r=([A-Za-z0-9_-]+)/.exec(t);
-  if(!c){ err.textContent="Non sembra il link dello studio: copia tutto il link dal messaggio."; return; }
-  if(decodeURIComponent(c[1]).trim()!==CODICE){ err.textContent="Questo link è di un altro cliente dello studio: usa quello che ti è stato mandato."; return; }
-  if(!r){ err.textContent="Nel link incollato non ci sono clienti e voci: chiedi allo studio di rimandarlo."; return; }
-  const esito=await leggiRubrica(r[1]);
-  if(esito){ err.textContent=esito; return; }
-  $("incolla").value=""; $("incolla_box").classList.add("hid"); caricaRubrica("");
-};
 $("addriga").onclick=()=>{aggiungiRiga(); $("righe").lastChild.querySelector("textarea").focus();};
 aggiungiRiga(); aggiorna();
 daLink().then(caricaRubrica);
