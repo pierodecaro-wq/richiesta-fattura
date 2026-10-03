@@ -192,7 +192,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <button type="submit" class="pri">Prepara richiesta</button>
 </div>
 </form>
-<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 03/10/2026 n. 7</p>
+<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 03/10/2026 n. 8</p>
 
 <div id="invio" class="hid">
 <h1>Invia allo studio</h1>
@@ -294,8 +294,12 @@ $("privacytesto").innerHTML =
 // ---- rubrica: dal link (dopo #r=) e memoria del telefono ----
 const MEM="rf_rubrica_"+CODICE;
 let CLIENTI=[], VOCI=[];
-function leggiMem(){try{return JSON.parse(localStorage.getItem(MEM))||{};}catch(_){return {};}}
-function scriviMem(m){try{localStorage.setItem(MEM,JSON.stringify(m));}catch(_){}}
+// Se il browser non lascia salvare (alcune impostazioni di Edge, navigazione privata), i dati restano
+// in questa variabile finché la pagina è aperta, invece di sparire.
+let RISERVA={};
+function leggiMem(){try{const m=JSON.parse(localStorage.getItem(MEM)); if(m) return m;}catch(_){} return JSON.parse(JSON.stringify(RISERVA));}
+function scriviMem(m){RISERVA=JSON.parse(JSON.stringify(m)); try{localStorage.setItem(MEM,JSON.stringify(m)); return localStorage.getItem(MEM)!==null;}catch(_){return false;}}
+let MEMORIA_OK=true;
 const nomeC = c => c.d || [c.n,c.g].filter(Boolean).join(" ");
 const chiaveC = c => (c.pi||c.cf||c.ie||nomeC(c)).toUpperCase();
 const etiC = c => nomeC(c)+" · "+(c.pi?"P.IVA "+c.pi:c.cf?"CF "+c.cf:c.ie?"ID "+c.ie:c.co||"");
@@ -303,13 +307,15 @@ const etiV = x => x.d.replace(/\s+/g," ").slice(0,80)+(x.p?" · "+euro(+x.p)+(x.
 async function daLink(){
   const m=/(?:^#|&)r=([A-Za-z0-9_-]+)/.exec(location.hash);
   if(!m) return "";
-  history.replaceState(null,"",location.pathname+location.search);
   try{
     const b=m[1].replace(/-/g,"+").replace(/_/g,"/"), bin=atob(b+"===".slice((b.length+3)%4));
     const flusso=new Blob([Uint8Array.from(bin,c=>c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
     const r=JSON.parse(await new Response(flusso).text());
     if(r.v!==1) throw new Error("versione");
-    const mem=leggiMem(); mem.studio={il:r.il, c:r.c||[], vo:r.vo||[]}; scriviMem(mem);
+    const mem=leggiMem(); mem.studio={il:r.il, c:r.c||[], vo:r.vo||[]};
+    MEMORIA_OK=scriviMem(mem);
+    // la rubrica esce dalla barra degli indirizzi solo se è salvata: altrimenti serve di nuovo alla prossima apertura
+    if(MEMORIA_OK) history.replaceState(null,"",location.pathname+location.search);
     return "";
   }catch(_){ return "La rubrica nel link non si legge: forse il link è stato tagliato. Puoi scrivere i dati a mano o chiedere allo studio di rimandarlo."; }
 }
@@ -323,9 +329,9 @@ function caricaRubrica(problema){
   $("rub_box").classList.toggle("hid", !CLIENTI.length && !problema);
   $("rub_campo").classList.toggle("hid", !CLIENTI.length);
   $("rub_info").innerHTML=(problema?esc(problema)+" ":"")+(CLIENTI.length||VOCI.length?
-    esc(CLIENTI.length+(CLIENTI.length===1?" cliente":" clienti")+" e "+VOCI.length+(VOCI.length===1?" voce":" voci")+" salvati su questo telefono"+(st.il?" (rubrica dello studio del "+it(st.il)+")":"")+". ")+
+    esc(CLIENTI.length+(CLIENTI.length===1?" cliente":" clienti")+" e "+VOCI.length+(VOCI.length===1?" voce":" voci")+(MEMORIA_OK?" salvati su questo telefono":" dal link")+(st.il?" (rubrica dello studio del "+it(st.il)+")":"")+". "+(MEMORIA_OK?"":"Questo browser non lascia salvarli: la prossima volta apri di nuovo il link ricevuto dallo studio. "))+
     '<button type="button" class="lnk" id="b_dim">Dimentica i dati su questo telefono</button>':"");
-  const bd=$("b_dim"); if(bd) bd.onclick=()=>{ try{localStorage.removeItem(MEM);}catch(_){} $("rub").value=""; caricaRubrica(""); };
+  const bd=$("b_dim"); if(bd) bd.onclick=()=>{ try{localStorage.removeItem(MEM);}catch(_){} RISERVA={}; $("rub").value=""; caricaRubrica(""); };
   document.querySelectorAll("#righe [data-voce]").forEach(x=>x.classList.toggle("hid", !VOCI.length));
 }
 function metti(id,v){ $(id).value=v||""; }
