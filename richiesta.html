@@ -40,7 +40,8 @@ button.pri{background:var(--acc);border-color:var(--acc);color:var(--accfg);font
 .lista button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;min-height:44px;padding:10px 12px}
 .lista button:last-child{border-bottom:0}
 .lista .vuota{padding:10px 12px;color:var(--mut)}
-.tendina button.freccia{position:absolute;right:1px;top:1px;bottom:1px;width:44px;min-height:0;padding:0;border:0;border-left:1px solid var(--line);border-radius:0 4px 4px 0;background:var(--sec);color:var(--fg);font-size:18px;line-height:1}
+.tendina button.freccia{position:absolute;right:1px;top:1px;bottom:1px;width:44px;min-height:0;padding:0;border:0;border-left:1px solid var(--line);border-radius:0 4px 4px 0;background:var(--sec);color:var(--fg);display:flex;align-items:center;justify-content:center}
+.tendina button.freccia svg{width:16px;height:16px;pointer-events:none}
 button.lnk{border:0;background:none;color:var(--acc);padding:4px;min-height:0}
 .acts{display:grid;gap:8px;margin-top:10px}
 .err{color:var(--err);font-size:13px;margin-top:3px}
@@ -99,7 +100,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <fieldset>
 <legend>A chi fatturi</legend>
 <div id="rub_box" class="hid">
-<div id="rub_campo"><label for="rub">Cliente già in rubrica</label><div class="tendina"><input id="rub" autocomplete="off" role="combobox" aria-expanded="false" placeholder="Tocca ▾ o scrivi nome, P.IVA, CF"><button type="button" class="freccia" aria-label="Mostra i clienti in rubrica">▾</button></div></div>
+<div id="rub_campo"><label for="rub">Cliente già in rubrica</label><div class="tendina"><input id="rub" autocomplete="off" role="combobox" aria-expanded="false" placeholder="Tocca la freccia o scrivi per cercare"><button type="button" class="freccia" aria-label="Mostra i clienti in rubrica"><svg viewBox="0 0 12 12" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>
 <p class="sub" id="rub_info"></p>
 </div>
 <div class="seg" role="radiogroup">
@@ -191,7 +192,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <button type="submit" class="pri">Prepara richiesta</button>
 </div>
 </form>
-<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 30/09/2026 n. 6</p>
+<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 03/10/2026 n. 7</p>
 
 <div id="invio" class="hid">
 <h1>Invia allo studio</h1>
@@ -415,7 +416,7 @@ function aggiungiRiga(){
   const d=document.createElement("div"); d.className="riga";
   d.innerHTML =
    '<div class="rh"><span>Riga</span><button type="button" class="lnk" data-del>Rimuovi</button></div>'+
-   '<div data-voce class="hid"><label>Voce</label><div class="tendina"><input data-f="voce" autocomplete="off" role="combobox" aria-expanded="false" placeholder="Tocca ▾ o scrivi per cercare"><button type="button" class="freccia" aria-label="Mostra le voci">▾</button></div></div>'+
+   '<div data-voce class="hid"><label>Voce</label><div class="tendina"><input data-f="voce" autocomplete="off" role="combobox" aria-expanded="false" placeholder="Tocca la freccia o scrivi per cercare"><button type="button" class="freccia" aria-label="Mostra le voci"><svg viewBox="0 0 12 12" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>'+
    '<label class="req">Descrizione</label><textarea data-f="descrizione" maxlength="1000" rows="2"></textarea>'+
    '<label class="chk" style="margin-top:10px"><input type="checkbox" data-f="ivato"> <span>Il prezzo che scrivo è IVA inclusa</span></label>'+
    '<div class="row3"><div><label class="req" data-l="prezzo">Prezzo unitario senza IVA (€)</label><input data-f="prezzo" inputmode="decimal"></div>'+
