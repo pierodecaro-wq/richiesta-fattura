@@ -192,7 +192,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <button type="submit" class="pri">Prepara richiesta</button>
 </div>
 </form>
-<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 03/10/2026 n. 8</p>
+<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 05/10/2026 n. 10</p>
 
 <div id="invio" class="hid">
 <h1>Invia allo studio</h1>
@@ -305,17 +305,19 @@ const chiaveC = c => (c.pi||c.cf||c.ie||nomeC(c)).toUpperCase();
 const etiC = c => nomeC(c)+" · "+(c.pi?"P.IVA "+c.pi:c.cf?"CF "+c.cf:c.ie?"ID "+c.ie:c.co||"");
 const etiV = x => x.d.replace(/\s+/g," ").slice(0,80)+(x.p?" · "+euro(+x.p)+(x.l?" IVA incl.":""):"");
 async function daLink(){
-  const m=/(?:^#|&)r=([A-Za-z0-9_-]+)/.exec(location.hash);
-  if(!m) return "";
+  // di solito dopo il # (non arriva a GitHub); nel link "per Edge" sta prima, perché Edge su iPhone toglie il #
+  const m=/(?:^#|&)r=([A-Za-z0-9_-]+)/.exec(location.hash), q=P.get("r")||"";
+  const dati=m?m[1]:(/^[A-Za-z0-9_-]+$/.test(q)?q:"");
+  if(!dati) return "";
   try{
-    const b=m[1].replace(/-/g,"+").replace(/_/g,"/"), bin=atob(b+"===".slice((b.length+3)%4));
+    const b=dati.replace(/-/g,"+").replace(/_/g,"/"), bin=atob(b+"===".slice((b.length+3)%4));
     const flusso=new Blob([Uint8Array.from(bin,c=>c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
     const r=JSON.parse(await new Response(flusso).text());
     if(r.v!==1) throw new Error("versione");
     const mem=leggiMem(); mem.studio={il:r.il, c:r.c||[], vo:r.vo||[]};
     MEMORIA_OK=scriviMem(mem);
     // la rubrica esce dalla barra degli indirizzi solo se è salvata: altrimenti serve di nuovo alla prossima apertura
-    if(MEMORIA_OK) history.replaceState(null,"",location.pathname+location.search);
+    if(MEMORIA_OK){ const u=new URL(location.href); u.searchParams.delete("r"); history.replaceState(null,"",u.pathname+u.search); }
     return "";
   }catch(_){ return "La rubrica nel link non si legge: forse il link è stato tagliato. Puoi scrivere i dati a mano o chiedere allo studio di rimandarlo."; }
 }
