@@ -63,6 +63,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <div id="app" class="hid">
 <h1>Richiesta fattura</h1>
 <p class="sub" id="perchi"></p>
+<p class="sub hid" id="intestata"></p>
 
 <form id="f" novalidate autocomplete="on">
 
@@ -71,7 +72,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <div class="seg" role="radiogroup">
 <label><input type="radio" name="tipo" value="fattura" checked> Fattura</label>
 <label><input type="radio" name="tipo" value="fattura_differita"> Fattura differita</label>
-<label><input type="radio" name="tipo" value="nota_credito"> Nota di credito</label>
+<label id="l_nc"><input type="radio" name="tipo" value="nota_credito"> Nota di credito</label>
 </div>
 <div id="nc" class="hid">
 <div class="row2">
@@ -87,17 +88,15 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 </div>
 </div>
 <div id="sc_box">
-<label class="chk" style="margin-top:12px"><input type="checkbox" id="sc_si"> <span>Al cliente ho già fatto lo scontrino</span></label>
+<label class="chk" style="margin-top:12px"><input type="checkbox" id="sc_si"> <span id="sc_eti">Al cliente ho già fatto lo scontrino</span></label>
 <div id="sc" class="hid">
-<div class="row2">
-<div><label class="req" for="sc_numero">Numero scontrino</label><input id="sc_numero" maxlength="20" placeholder="Es. 0012-0034"></div>
-<div><label class="req" for="sc_data">Data scontrino</label><input id="sc_data" type="date"></div>
-</div>
+<div id="sc_righe"></div>
+<div class="acts" style="margin-top:8px"><button type="button" id="sc_add">+ Altro scontrino</button></div>
 </div>
 </div>
 </fieldset>
 
-<fieldset>
+<fieldset id="fs_cliente">
 <legend>A chi fatturi</legend>
 <div id="rub_box" class="hid">
 <div id="rub_campo"><label for="rub">Cliente già in rubrica</label><div class="tendina"><input id="rub" autocomplete="off" role="combobox" aria-expanded="false" placeholder="Tocca la freccia o scrivi per cercare"><button type="button" class="freccia" aria-label="Mostra i clienti in rubrica"><svg viewBox="0 0 12 12" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>
@@ -165,19 +164,20 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <legend>Cosa fatturi</legend>
 <div id="righe"></div>
 <button type="button" class="lnk" id="addriga">+ Aggiungi riga</button>
+<p class="sub hid" id="vo_info"></p>
 <div class="tot" id="tot"></div>
 <p class="note">Prezzi senza IVA, salvo le righe con "IVA inclusa". Aliquota, bollo, ritenute e altri calcoli li verifica lo studio.</p>
 </fieldset>
 
 <fieldset>
 <legend>Pagamento</legend>
-<label class="req" for="pag">Come ti pagano</label>
+<label class="req" for="pag" id="l_pag">Come ti pagano</label>
 <select id="pag"><option value="">Scegli</option><option value="bonifico">Bonifico</option><option value="contanti">Contanti</option><option value="carta">Carta</option><option value="altro">Altro (lo studio completa)</option></select>
 <div class="row2">
 <div><label for="data">Data della fattura</label><input id="data" type="date"></div>
 <div><label for="scad">Scadenza pagamento</label><input id="scad" type="date"></div>
 </div>
-<label for="note">Note per lo studio</label>
+<label for="note" id="l_note">Note per lo studio</label>
 <textarea id="note" maxlength="1000" placeholder="Es. già pagato, sconto concordato, altre righe"></textarea>
 </fieldset>
 
@@ -185,14 +185,14 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--se
 <summary>Informativa privacy</summary>
 <div id="privacytesto"></div>
 </details>
-<label class="chk"><input type="checkbox" id="okpriv"> <span>Ho letto l'informativa privacy e confermo di poter comunicare allo studio i dati del mio cliente per l'emissione della fattura.</span></label>
+<label class="chk"><input type="checkbox" id="okpriv"> <span id="l_okpriv">Ho letto l'informativa privacy e confermo di poter comunicare allo studio i dati del mio cliente per l'emissione della fattura.</span></label>
 
 <div id="errori" class="errbox hid"></div>
 <div class="acts">
 <button type="submit" class="pri">Prepara richiesta</button>
 </div>
 </form>
-<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 05/10/2026 n. 10</p>
+<p class="sub" id="versione" style="margin-top:16px;text-align:center">Versione 08/10/2026 n. 11</p>
 
 <div id="invio" class="hid">
 <h1>Invia allo studio</h1>
@@ -268,11 +268,20 @@ function oraLocale(){const d=new Date(),z=-d.getTimezoneOffset(),p=n=>String(Mat
 const P=new URLSearchParams(location.search);
 const CODICE=(P.get("c")||"").trim();
 const CEDENTE=(P.get("n")||"").trim().slice(0,80);
+// link del cliente del cedente: la fattura è sempre intestata a lui, i suoi dati li ha già lo studio
+const MODO_CLIENTE=P.get("m")==="c";
+let INTESTATARIO=null;
 
 function blocca(msg){$("blocco").textContent=msg;$("blocco").classList.remove("hid");}
 if(!/^[A-Z0-9]{8}$/.test(CODICE)) blocca("Link non valido: manca il codice cliente. Chiedi allo studio il link corretto.");
 else if(!CONFIG.whatsapp && !CONFIG.email) blocca("Pagina non ancora configurata dallo studio.");
-else { $("app").classList.remove("hid"); $("perchi").textContent = CEDENTE ? "Per " + CEDENTE : ""; }
+else { $("app").classList.remove("hid"); $("perchi").textContent = CEDENTE ? (MODO_CLIENTE ? "Fattura di " : "Per ") + CEDENTE : ""; }
+if(MODO_CLIENTE){
+  $("fs_cliente").classList.add("hid"); $("l_nc").classList.add("hid");
+  $("l_pag").textContent="Come paghi"; $("l_note").textContent="Note";
+  $("note").placeholder="Es. già pagato, sconto concordato, riferimento d'ordine";
+  $("l_okpriv").textContent="Ho letto l'informativa privacy.";
+}
 document.title = CEDENTE ? "Richiesta fattura - " + CEDENTE : "Richiesta fattura";
 if(!CONFIG.whatsapp) $("b_wa").classList.add("hid");
 if(!CONFIG.email) $("b_mail").classList.add("hid");
@@ -280,7 +289,18 @@ if(!navigator.share) $("b_share").classList.add("hid");
 
 // ---- informativa ----
 function campo(v, segnaposto){return v ? esc(v) : "["+segnaposto+"]";}
-$("privacytesto").innerHTML =
+const STUDIO_PRIV=campo(CONFIG.titolare,"nome dello studio")+", "+campo(CONFIG.indirizzo,"indirizzo")+", "+campo(CONFIG.emailPrivacy||CONFIG.email,"email");
+if(MODO_CLIENTE) $("privacytesto").innerHTML =
+ "<p><b>Titolare del trattamento</b>: "+campo(CEDENTE,"chi emette la fattura")+", che ti emette la fattura. Lo studio "+STUDIO_PRIV+" riceve i dati per suo conto, perché tiene le sue fatture.</p>"+
+ "<p><b>Cosa facciamo con i dati</b>: li usiamo solo per emettere la fattura che chiedi e per i relativi adempimenti fiscali, per eseguire il contratto con te e per gli obblighi di legge (art. 6, par. 1, lett. b e c, del Regolamento UE 2016/679).</p>"+
+ "<p><b>I tuoi dati di fatturazione</b>: li ha già lo studio e non li devi riscrivere. Questo link vale solo per fatture intestate a te: non inoltrarlo.</p>"+
+ "<p><b>Come viaggiano</b>: questa pagina non trasmette niente da sola. I dati arrivano allo studio solo quando li invii tu con WhatsApp, email o un'altra app scelta da te, secondo le regole di quel servizio.</p>"+
+ "<p><b>Cosa resta sul telefono</b>: la pagina ricorda su questo telefono le descrizioni e i prezzi che scrivi, per non fartele riscrivere. Puoi cancellarli quando vuoi con \"Dimentica i dati su questo telefono\".</p>"+
+ "<p><b>A chi li comunichiamo</b>: alla piattaforma di fatturazione elettronica usata dallo studio per l'invio e al Sistema di Interscambio dell'Agenzia delle Entrate. Non li diffondiamo.</p>"+
+ "<p><b>Per quanto tempo</b>: per il tempo previsto dalla legge per le scritture e i documenti contabili (di norma 10 anni).</p>"+
+ "<p><b>I tuoi diritti</b>: puoi chiedere accesso, rettifica, cancellazione, limitazione e opposizione (artt. 15-22 del Regolamento) a "+campo(CEDENTE,"chi emette la fattura")+" o allo studio, e puoi presentare reclamo al Garante per la protezione dei dati personali.</p>"+
+ "<p><b>Obbligatorietà</b>: senza questi dati non si può emettere la fattura.</p>";
+else $("privacytesto").innerHTML =
  "<p><b>Titolare del trattamento</b>: "+campo(CONFIG.titolare,"nome dello studio")+", "+campo(CONFIG.indirizzo,"indirizzo")+", "+campo(CONFIG.emailPrivacy||CONFIG.email,"email")+".</p>"+
  "<p><b>Cosa facciamo con i dati</b>: li usiamo solo per preparare ed emettere la fattura che ci chiedi e per i relativi adempimenti fiscali, sulla base dell'incarico che ci hai affidato e degli obblighi di legge (art. 6, par. 1, lett. b e c, del Regolamento UE 2016/679).</p>"+
  "<p><b>Dati del tuo cliente</b>: per i dati della persona o dell'ente a cui fatturi, il titolare sei tu; lo studio li tratta per tuo conto, nei limiti dell'incarico. Inserisci solo i dati necessari alla fattura.</p>"+
@@ -314,21 +334,28 @@ async function daLink(){
     const flusso=new Blob([Uint8Array.from(bin,c=>c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
     const r=JSON.parse(await new Response(flusso).text());
     if(r.v!==1) throw new Error("versione");
+    if(MODO_CLIENTE){ INTESTATARIO=(r.c||[])[0]||null; return ""; }
     const mem=leggiMem(); mem.studio={il:r.il, c:r.c||[], vo:r.vo||[]};
     MEMORIA_OK=scriviMem(mem);
     // la rubrica esce dalla barra degli indirizzi solo se è salvata: altrimenti serve di nuovo alla prossima apertura
     if(MEMORIA_OK){ const u=new URL(location.href); u.searchParams.delete("r"); history.replaceState(null,"",u.pathname+u.search); }
     return "";
-  }catch(_){ return "La rubrica nel link non si legge: forse il link è stato tagliato. Puoi scrivere i dati a mano o chiedere allo studio di rimandarlo."; }
+  }catch(_){ if(MODO_CLIENTE) return ""; return "La rubrica nel link non si legge: forse il link è stato tagliato. Puoi scrivere i dati a mano o chiedere allo studio di rimandarlo."; }
 }
 function caricaRubrica(problema){
-  const mem=leggiMem(), st=mem.studio||{c:[],vo:[]}, miei=mem.miei||{c:[],vo:[]};
+  const mem=leggiMem(), st=(!MODO_CLIENTE&&mem.studio)||{c:[],vo:[]}, miei=mem.miei||{c:[],vo:[]};
+  if(MODO_CLIENTE){ miei.c=[];
+    const x=INTESTATARIO, id=x&&(x.pi?"P.IVA "+x.pi:x.cf?"CF "+x.cf:x.ie?"ID "+x.ie:"");
+    $("intestata").textContent = x ? "Intestata a "+nomeC(x)+(id?" ("+id+")":"")+". I tuoi dati li ha già lo studio." : "La fattura sarà intestata a te: i tuoi dati li ha già lo studio.";
+    $("intestata").classList.remove("hid"); }
   const visti=new Set(); CLIENTI=[];
   for(const c of st.c.concat(miei.c)){ const k=chiaveC(c); if(k && !visti.has(k)){ visti.add(k); CLIENTI.push(c); } }
   CLIENTI.sort((a,b)=>nomeC(a).localeCompare(nomeC(b),"it"));
   const vv=new Set(); VOCI=[];
   for(const x of st.vo.concat(miei.vo)){ const k=x.d.trim().toUpperCase(); if(k && !vv.has(k)){ vv.add(k); VOCI.push(x); } }
   $("rub_box").classList.toggle("hid", !CLIENTI.length && !problema);
+  if(MODO_CLIENTE){ const vb=$("vo_info"); vb.classList.toggle("hid", !VOCI.length); if(VOCI.length){ vb.innerHTML=esc(VOCI.length+(VOCI.length===1?" voce ricordata":" voci ricordate")+" su questo telefono. ")+'<button type="button" class="lnk" id="b_dimv">Dimentica i dati su questo telefono</button>';
+    $("b_dimv").onclick=()=>{ try{localStorage.removeItem(MEM);}catch(_){} RISERVA={}; caricaRubrica(""); }; } }
   $("rub_campo").classList.toggle("hid", !CLIENTI.length);
   $("rub_info").innerHTML=(problema?esc(problema)+" ":"")+(CLIENTI.length||VOCI.length?
     esc(CLIENTI.length+(CLIENTI.length===1?" cliente":" clienti")+" e "+VOCI.length+(VOCI.length===1?" voce":" voci")+(MEMORIA_OK?" salvati su questo telefono":" dal link")+(st.il?" (rubrica dello studio del "+it(st.il)+")":"")+". "+(MEMORIA_OK?"":"Questo browser non lascia salvarli: la prossima volta apri di nuovo il link ricevuto dallo studio. "))+
@@ -383,11 +410,11 @@ function usaVoce(riga,x){
   (x.b ? riga.querySelector("[data-f=buono]") : riga.querySelector("[data-f=quantita]")).focus();
 }
 function ricorda(r){
-  const c=r.cliente, x={t:r.tipo_cliente, d:c.denominazione, n:c.nome, g:c.cognome, pi:c.partita_iva, cf:c.codice_fiscale, de:c.codice_destinatario_o_pec,
+  const c=r.cliente||{}, x={t:r.tipo_cliente, d:c.denominazione, n:c.nome, g:c.cognome, pi:c.partita_iva, cf:c.codice_fiscale, de:c.codice_destinatario_o_pec,
     i:c.indirizzo, cp:c.cap, co:c.comune, pr:c.provincia, pa:c.paese, te:c.tipo_estero, ie:c.identificativo_estero, uf:r.pa&&r.pa.codice_ufficio};
   Object.keys(x).forEach(k=>{ if(!x[k]) delete x[k]; });
   const mem=leggiMem(), miei=mem.miei||{c:[],vo:[]};
-  miei.c=[x].concat(miei.c.filter(y=>chiaveC(y)!==chiaveC(x))).slice(0,200);
+  if(!MODO_CLIENTE) miei.c=[x].concat(miei.c.filter(y=>chiaveC(y)!==chiaveC(x))).slice(0,200);
   for(const rr of r.righe.slice().reverse()){
     const v={d:rr.descrizione, p:rr.prezzo_unitario, i:rr.iva||undefined, b:rr.codice_buono?1:undefined, l:rr.prezzo_ivato?1:undefined};
     Object.keys(v).forEach(k=>{ if(!v[k]) delete v[k]; });
@@ -410,12 +437,33 @@ function aggiorna(){
   $("nc").classList.toggle("hid", tipoDoc()!=="nota_credito");
   $("fd").classList.toggle("hid", tipoDoc()!=="fattura_differita");
   if(tipoDoc()==="fattura_differita" && !$("fd_mese").value){ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); $("fd_mese").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
-  $("sc_box").classList.toggle("hid", tipoDoc()!=="fattura");
+  $("sc_box").classList.toggle("hid", tipoDoc()==="nota_credito");
+  $("sc_eti").textContent = MODO_CLIENTE ? (tipoDoc()==="fattura_differita" ? "Per questi acquisti ho già uno o più scontrini" : "Per questo acquisto ho già lo scontrino")
+    : tipoDoc()==="fattura_differita" ? "Per queste operazioni ho già fatto uno o più scontrini" : "Al cliente ho già fatto lo scontrino";
   $("sc").classList.toggle("hid", !$("sc_si").checked);
+  if($("sc_si").checked && !$("sc_righe").children.length) aggiungiScontrino();
   $("pa_doc").classList.toggle("hid", !$("pa_tipo").value);
 }
 document.querySelectorAll("input[name=tc],input[name=tipo],input[name=et]").forEach(r=>r.addEventListener("change",aggiorna));
 $("pa_tipo").addEventListener("change",aggiorna); $("sc_si").addEventListener("change",aggiorna); $("paese").addEventListener("change",aggiorna);
+
+// ---- scontrini (più di uno: le differite spesso ne riuniscono tanti) ----
+const MAX_SC=100;
+function aggiungiScontrino(){
+  if($("sc_righe").children.length>=MAX_SC) return;
+  const d=document.createElement("div"); d.className="row2 sc_riga";
+  d.innerHTML='<div><label class="req">Numero scontrino</label><input data-s="numero" maxlength="20" placeholder="Es. 0012-0034"></div>'+
+    '<div><label class="req">Data scontrino</label><input data-s="data" type="date"><button type="button" class="lnk" data-sdel>Rimuovi</button></div>';
+  d.querySelector("[data-sdel]").onclick=()=>{ d.remove(); numeraSc(); if(!$("sc_righe").children.length){ $("sc_si").checked=false; aggiorna(); } };
+  $("sc_righe").appendChild(d); numeraSc();
+}
+function numeraSc(){
+  const rr=[...$("sc_righe").children];
+  rr.forEach((r,i)=>{ r.querySelectorAll("label")[0].textContent = rr.length>1 ? "Scontrino "+(i+1)+": numero" : "Numero scontrino";
+    r.querySelectorAll("label")[1].textContent = rr.length>1 ? "Scontrino "+(i+1)+": data" : "Data scontrino"; });
+  $("sc_add").classList.toggle("hid", rr.length>=MAX_SC);
+}
+$("sc_add").onclick=()=>{ aggiungiScontrino(); $("sc_righe").lastChild.querySelector("input").focus(); };
 
 // ---- righe ----
 let nRighe=0;
@@ -443,6 +491,7 @@ function numera(){[...$("righe").children].forEach((r,i)=>{r.querySelector(".rh 
 // prezzo IVA inclusa: qui solo una stima; lo scorporo vero lo fa lo studio con l'aliquota del tuo profilo
 const aliquota = v => /^(22|10|5|4)$/.test(v) ? +v : null;
 function netto(lordo, iva){ const a=aliquota(iva); return a===null ? null : Math.round(lordo/(1+a/100)*100)/100; }
+const ALIQ = MODO_CLIENTE ? "l'aliquota di chi emette la fattura" : "l'aliquota che applichi di solito";
 function totale(){
   let t=0, ok=true, stima=false;
   for(const r of $("righe").children){
@@ -450,12 +499,12 @@ function totale(){
     r.querySelector("[data-l=prezzo]").textContent = ivato ? "Prezzo unitario IVA inclusa (€)" : "Prezzo unitario senza IVA (€)";
     const p=numero(r.querySelector("[data-f=prezzo]").value,2), q=numero(r.querySelector("[data-f=quantita]").value,8), hint=r.querySelector("[data-hint]");
     hint.classList.toggle("hid", !ivato);
-    if(p===null||q===null){ ok=false; if(ivato) hint.textContent="Lo studio toglie l'IVA con l'aliquota che applichi di solito."; continue; }
+    if(p===null||q===null){ ok=false; if(ivato) hint.textContent="Lo studio toglie l'IVA con "+ALIQ+"."; continue; }
     const lordo=Math.round(+p*+q*100)/100;
     if(!ivato){ t+=lordo; continue; }
     const n=netto(lordo, iva);
-    hint.textContent = n===null ? "Totale riga "+euro(lordo)+" IVA inclusa: lo studio toglie l'IVA con l'aliquota che applichi di solito."
-      : "Totale riga "+euro(lordo)+" IVA inclusa, circa "+euro(n)+" senza IVA. Lo studio usa l'aliquota che applichi di solito.";
+    hint.textContent = n===null ? "Totale riga "+euro(lordo)+" IVA inclusa: lo studio toglie l'IVA con "+ALIQ+"."
+      : "Totale riga "+euro(lordo)+" IVA inclusa, circa "+euro(n)+" senza IVA. Lo studio usa "+ALIQ+".";
     if(n===null) ok=false; else { t+=n; stima=true; }
   }
   $("tot").textContent = t>0 ? "Imponibile indicativo: "+euro(t)+(stima?" (stima)":"")+(ok?"":" (alcune righe da completare o da calcolare)") : "";
@@ -483,55 +532,70 @@ function raccogli(){
     r.differita={mese:v("fd_mese"), riferimento:v("fd_rif")};
     if(!/^\d{4}-\d{2}$/.test(r.differita.mese)) segna("fd_mese","Indica il mese delle prestazioni.",errs);
   }
-  if(r.tipo_documento==="fattura" && $("sc_si").checked){
-    r.scontrino={numero:v("sc_numero"), data:v("sc_data")};
-    if(!r.scontrino.numero) segna("sc_numero","Manca il numero dello scontrino.",errs);
-    if(!r.scontrino.data) segna("sc_data","Manca la data dello scontrino.",errs);
+  if(r.tipo_documento!=="nota_credito" && $("sc_si").checked){
+    const sc=[];
+    [...$("sc_righe").children].forEach((el,i)=>{
+      const n=el.querySelector("[data-s=numero]"), d=el.querySelector("[data-s=data]"), x={numero:n.value.trim(), data:d.value}, q=$("sc_righe").children.length>1?" "+(i+1):"";
+      if(!x.numero && !x.data) return;
+      if(!x.numero){ errs.push("Manca il numero dello scontrino"+q+"."); n.setAttribute("aria-invalid","true"); }
+      if(!x.data){ errs.push("Manca la data dello scontrino"+q+"."); d.setAttribute("aria-invalid","true"); }
+      if(sc.some(y=>y.numero===x.numero && y.data===x.data)) return;
+      sc.push(x);
+    });
+    if(!sc.length) errs.push("Scrivi numero e data dello scontrino, oppure togli la spunta.");
+    // uno solo: come prima, così lo legge anche il programma non ancora aggiornato
+    if(sc.length===1) r.scontrino=sc[0]; else if(sc.length) r.scontrini=sc;
   }
 
-  const c={};
-  if(!$("box_pf").classList.contains("hid")){
-    c.nome=v("pf_nome"); c.cognome=v("pf_cognome");
-    if(!c.nome) segna("pf_nome","Manca il nome del cliente.",errs);
-    if(!c.cognome) segna("pf_cognome","Manca il cognome del cliente.",errs);
-  } else { c.denominazione=v("den"); if(!c.denominazione) segna("den","Manca la ragione sociale del cliente.",errs); }
-  if(k==="azienda"){
-    c.partita_iva=up("piva").replace(/^IT/,""); c.codice_fiscale=up("cf_az");
-    if(!c.partita_iva && !c.codice_fiscale) segna("piva","Scrivi la partita IVA o, se il cliente non ce l'ha (associazioni, enti), il codice fiscale.",errs);
-    else if(c.partita_iva && !pivaOk(c.partita_iva)) segna("piva","Partita IVA non valida (11 cifre, controlla di averla copiata bene).",errs);
-    if(c.codice_fiscale && !cfOk(c.codice_fiscale)) segna("cf_az","Codice fiscale non valido.",errs);
+  if(MODO_CLIENTE){
+    // il programma usa i dati del cliente che ha in rubrica per questo link: qui non si scrivono
+    r.cliente_del_link=true;
+    if(INTESTATARIO) r.tipo_cliente=INTESTATARIO.t; else delete r.tipo_cliente;
+  } else {
+    const c={};
+    if(!$("box_pf").classList.contains("hid")){
+      c.nome=v("pf_nome"); c.cognome=v("pf_cognome");
+      if(!c.nome) segna("pf_nome","Manca il nome del cliente.",errs);
+      if(!c.cognome) segna("pf_cognome","Manca il cognome del cliente.",errs);
+    } else { c.denominazione=v("den"); if(!c.denominazione) segna("den","Manca la ragione sociale del cliente.",errs); }
+    if(k==="azienda"){
+      c.partita_iva=up("piva").replace(/^IT/,""); c.codice_fiscale=up("cf_az");
+      if(!c.partita_iva && !c.codice_fiscale) segna("piva","Scrivi la partita IVA o, se il cliente non ce l'ha (associazioni, enti), il codice fiscale.",errs);
+      else if(c.partita_iva && !pivaOk(c.partita_iva)) segna("piva","Partita IVA non valida (11 cifre, controlla di averla copiata bene).",errs);
+      if(c.codice_fiscale && !cfOk(c.codice_fiscale)) segna("cf_az","Codice fiscale non valido.",errs);
+    }
+    if(k==="privato"){ c.codice_fiscale=up("cf_pr"); if(!cfPersonaOk(c.codice_fiscale)) segna("cf_pr","Codice fiscale non valido.",errs); }
+    if(k==="azienda" || k==="privato"){
+      const d=v("dest"); c.codice_destinatario_o_pec=d;
+      if(d && !/^[A-Za-z0-9]{7}$/.test(d) && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d)) segna("dest","Codice destinatario (7 caratteri) o PEC non valido.",errs);
+      if(/^[A-Za-z0-9]{7}$/.test(d)) c.codice_destinatario_o_pec=d.toUpperCase();
+    }
+    if(k==="pa"){
+      c.codice_fiscale=up("cf_pa"); if(!pivaOk(c.codice_fiscale)) segna("cf_pa","Codice fiscale dell'ente non valido (11 cifre).",errs);
+      const pa={codice_ufficio:up("uff"), tipo_documento_acquisto:$("pa_tipo").value, numero_documento:"", data_documento:"", cig:up("cig"), cup:up("cup")};
+      if(!/^[A-Z0-9]{6}$/.test(pa.codice_ufficio)) segna("uff","Il codice univoco ufficio ha 6 caratteri.",errs);
+      if(pa.tipo_documento_acquisto){ pa.numero_documento=v("pa_num"); pa.data_documento=v("pa_data"); if(!pa.numero_documento) segna("pa_num","Manca il numero del documento d'acquisto.",errs); }
+      if(pa.cig && !/^[A-Z0-9]{10}$/.test(pa.cig)) segna("cig","Il CIG di solito ha 10 caratteri: controllalo.",errs);
+      if(pa.cup && !/^[A-Z0-9]{15}$/.test(pa.cup)) segna("cup","Il CUP di solito ha 15 caratteri: controllalo.",errs);
+      if((pa.cig||pa.cup) && !pa.tipo_documento_acquisto) segna("pa_tipo","Con CIG o CUP indica anche ordine, contratto o convenzione.",errs);
+      r.pa=pa;
+    }
+    if(k==="estero"){
+      c.tipo_estero=document.querySelector("input[name=et]:checked").value;
+      c.identificativo_estero=up("idest"); c.paese=$("paese").value==="altro" ? up("paese_altro") : $("paese").value;
+      if(!c.identificativo_estero) segna("idest","Manca l'identificativo fiscale estero.",errs);
+      if(!/^[A-Z]{2}$/.test(c.paese)) segna($("paese").value==="altro"?"paese_altro":"paese","Scegli il paese (o scrivi la sigla di 2 lettere).",errs);
+      else if(c.paese==="IT") segna("paese_altro","Per un cliente italiano scegli Azienda, Privato o Pubblica amministrazione.",errs);
+      if(c.paese && c.identificativo_estero.startsWith(c.paese) && c.identificativo_estero.length>2) avvisi.push("L'identificativo estero inizia con la sigla del paese ("+c.paese+"): lascialo così solo se fa davvero parte del numero.");
+    }
+    c.indirizzo=v("ind"); c.cap=v("cap"); c.comune=v("com");
+    if(k!=="estero"){ c.provincia=up("prov");
+      if(c.provincia && !/^[A-Z]{2}$/.test(c.provincia)) segna("prov","La provincia è una sigla di 2 lettere.",errs);
+      if(!/^[0-9]{5}$/.test(c.cap)) segna("cap","Il CAP ha 5 cifre.",errs); }
+    if(!c.indirizzo) segna("ind","Manca l'indirizzo.",errs);
+    if(!c.comune) segna("com","Manca il comune o la città.",errs);
+    r.cliente=c;
   }
-  if(k==="privato"){ c.codice_fiscale=up("cf_pr"); if(!cfPersonaOk(c.codice_fiscale)) segna("cf_pr","Codice fiscale non valido.",errs); }
-  if(k==="azienda" || k==="privato"){
-    const d=v("dest"); c.codice_destinatario_o_pec=d;
-    if(d && !/^[A-Za-z0-9]{7}$/.test(d) && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d)) segna("dest","Codice destinatario (7 caratteri) o PEC non valido.",errs);
-    if(/^[A-Za-z0-9]{7}$/.test(d)) c.codice_destinatario_o_pec=d.toUpperCase();
-  }
-  if(k==="pa"){
-    c.codice_fiscale=up("cf_pa"); if(!pivaOk(c.codice_fiscale)) segna("cf_pa","Codice fiscale dell'ente non valido (11 cifre).",errs);
-    const pa={codice_ufficio:up("uff"), tipo_documento_acquisto:$("pa_tipo").value, numero_documento:"", data_documento:"", cig:up("cig"), cup:up("cup")};
-    if(!/^[A-Z0-9]{6}$/.test(pa.codice_ufficio)) segna("uff","Il codice univoco ufficio ha 6 caratteri.",errs);
-    if(pa.tipo_documento_acquisto){ pa.numero_documento=v("pa_num"); pa.data_documento=v("pa_data"); if(!pa.numero_documento) segna("pa_num","Manca il numero del documento d'acquisto.",errs); }
-    if(pa.cig && !/^[A-Z0-9]{10}$/.test(pa.cig)) segna("cig","Il CIG di solito ha 10 caratteri: controllalo.",errs);
-    if(pa.cup && !/^[A-Z0-9]{15}$/.test(pa.cup)) segna("cup","Il CUP di solito ha 15 caratteri: controllalo.",errs);
-    if((pa.cig||pa.cup) && !pa.tipo_documento_acquisto) segna("pa_tipo","Con CIG o CUP indica anche ordine, contratto o convenzione.",errs);
-    r.pa=pa;
-  }
-  if(k==="estero"){
-    c.tipo_estero=document.querySelector("input[name=et]:checked").value;
-    c.identificativo_estero=up("idest"); c.paese=$("paese").value==="altro" ? up("paese_altro") : $("paese").value;
-    if(!c.identificativo_estero) segna("idest","Manca l'identificativo fiscale estero.",errs);
-    if(!/^[A-Z]{2}$/.test(c.paese)) segna($("paese").value==="altro"?"paese_altro":"paese","Scegli il paese (o scrivi la sigla di 2 lettere).",errs);
-    else if(c.paese==="IT") segna("paese_altro","Per un cliente italiano scegli Azienda, Privato o Pubblica amministrazione.",errs);
-    if(c.paese && c.identificativo_estero.startsWith(c.paese) && c.identificativo_estero.length>2) avvisi.push("L'identificativo estero inizia con la sigla del paese ("+c.paese+"): lascialo così solo se fa davvero parte del numero.");
-  }
-  c.indirizzo=v("ind"); c.cap=v("cap"); c.comune=v("com");
-  if(k!=="estero"){ c.provincia=up("prov");
-    if(c.provincia && !/^[A-Z]{2}$/.test(c.provincia)) segna("prov","La provincia è una sigla di 2 lettere.",errs);
-    if(!/^[0-9]{5}$/.test(c.cap)) segna("cap","Il CAP ha 5 cifre.",errs); }
-  if(!c.indirizzo) segna("ind","Manca l'indirizzo.",errs);
-  if(!c.comune) segna("com","Manca il comune o la città.",errs);
-  r.cliente=c;
 
   r.righe=[];
   [...$("righe").children].forEach((el,i)=>{
@@ -549,7 +613,9 @@ function raccogli(){
   if(!r.pagamento.modalita) segna("pag","Scegli come ti pagano.",errs);
   if(r.pagamento.data_fattura && r.pagamento.scadenza && r.pagamento.scadenza < r.pagamento.data_fattura) segna("scad","La scadenza è prima della data della fattura.",errs);
   if(r.tipo_documento==="nota_credito" && r.fattura_da_stornare.data && r.pagamento.data_fattura && r.pagamento.data_fattura < r.fattura_da_stornare.data) segna("data","La nota di credito non può avere data precedente alla fattura da stornare.",errs);
-  if(r.scontrino && r.scontrino.data && r.pagamento.data_fattura && r.pagamento.data_fattura < r.scontrino.data) segna("sc_data","Lo scontrino non può avere data successiva alla fattura.",errs);
+  const scs=r.scontrini||(r.scontrino?[r.scontrino]:[]);
+  if(r.pagamento.data_fattura && scs.some(x=>x.data && x.data > r.pagamento.data_fattura)) errs.push("Uno scontrino ha data successiva alla fattura.");
+  if(r.differita && /^\d{4}-\d{2}$/.test(r.differita.mese) && scs.some(x=>x.data && x.data.slice(0,7)!==r.differita.mese)) avvisi.push("Ci sono scontrini fuori dal mese delle prestazioni: controlla le date.");
   if(r.differita && /^\d{4}-\d{2}$/.test(r.differita.mese)){
     const oggi=new Date(), df=r.pagamento.data_fattura || (oggi.getFullYear()+"-"+String(oggi.getMonth()+1).padStart(2,"0")+"-"+String(oggi.getDate()).padStart(2,"0"));
     if(df.slice(0,7) <= r.differita.mese) segna("fd_mese","La fattura differita si fa dopo la fine del mese delle prestazioni.",errs);
@@ -566,16 +632,20 @@ function raccogli(){
 const it = d => d ? d.split("-").reverse().join("/") : "";
 const ETI={azienda:"Azienda o professionista",privato:"Privato",pa:"Pubblica amministrazione",estero:"Estero"};
 function testo(r){
-  const c=r.cliente, L=[];
+  const c=r.cliente||{}, L=[];
   L.push((r.tipo_documento==="nota_credito"?"NOTA DI CREDITO":r.tipo_documento==="fattura_differita"?"RICHIESTA FATTURA DIFFERITA":"RICHIESTA FATTURA")+(CEDENTE?" - "+CEDENTE:""));
   if(r.differita) L.push("Prestazioni di "+r.differita.mese.split("-").reverse().join("/")+(r.differita.riferimento?" - "+r.differita.riferimento:""));
   if(r.fattura_da_stornare) L.push("Storna fattura n. "+r.fattura_da_stornare.numero+" del "+it(r.fattura_da_stornare.data));
   if(r.scontrino) L.push("Scontrino già emesso n. "+r.scontrino.numero+" del "+it(r.scontrino.data));
-  L.push("Cliente: "+(c.denominazione||(c.nome+" "+c.cognome))+" ("+ETI[r.tipo_cliente]+(c.tipo_estero?", "+(c.tipo_estero==="privato"?"privato":"azienda"):"")+")");
-  const id=[c.partita_iva&&"P.IVA "+c.partita_iva, c.codice_fiscale&&"CF "+c.codice_fiscale, c.identificativo_estero&&"ID "+c.identificativo_estero].filter(Boolean).join(" - ");
-  if(id) L.push(id);
-  L.push(c.indirizzo+", "+(c.cap?c.cap+" ":"")+c.comune+(c.provincia?" ("+c.provincia+")":"")+(c.paese?", "+c.paese:""));
-  if(r.pa) L.push("Ufficio "+r.pa.codice_ufficio+(r.pa.tipo_documento_acquisto?" - "+r.pa.tipo_documento_acquisto+" "+r.pa.numero_documento:"")+(r.pa.cig?" - CIG "+r.pa.cig:"")+(r.pa.cup?" - CUP "+r.pa.cup:""));
+  if(r.scontrini) L.push(r.scontrini.length+" scontrini già emessi: "+r.scontrini.map(x=>"n. "+x.numero+" del "+it(x.data)).join(", "));
+  if(r.cliente_del_link) L.push("Mandata dal cliente: "+(INTESTATARIO?nomeC(INTESTATARIO):"quello del link"));
+  else {
+    L.push("Cliente: "+(c.denominazione||(c.nome+" "+c.cognome))+" ("+ETI[r.tipo_cliente]+(c.tipo_estero?", "+(c.tipo_estero==="privato"?"privato":"azienda"):"")+")");
+    const id=[c.partita_iva&&"P.IVA "+c.partita_iva, c.codice_fiscale&&"CF "+c.codice_fiscale, c.identificativo_estero&&"ID "+c.identificativo_estero].filter(Boolean).join(" - ");
+    if(id) L.push(id);
+    L.push(c.indirizzo+", "+(c.cap?c.cap+" ":"")+c.comune+(c.provincia?" ("+c.provincia+")":"")+(c.paese?", "+c.paese:""));
+    if(r.pa) L.push("Ufficio "+r.pa.codice_ufficio+(r.pa.tipo_documento_acquisto?" - "+r.pa.tipo_documento_acquisto+" "+r.pa.numero_documento:"")+(r.pa.cig?" - CIG "+r.pa.cig:"")+(r.pa.cup?" - CUP "+r.pa.cup:""));
+  }
   let t=0;
   let lordi=false;
   r.righe.forEach((x,i)=>{const imp=Math.round(+x.prezzo_unitario*+x.quantita*100)/100; if(x.prezzo_ivato) lordi=true; else t+=imp; L.push((i+1)+") "+x.descrizione.replace(/\s+/g," ").slice(0,60)+" - "+x.quantita+" x "+euro(+x.prezzo_unitario)+" = "+euro(imp)+(x.prezzo_ivato?" IVA inclusa":""));});
